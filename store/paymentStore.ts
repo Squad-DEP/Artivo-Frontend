@@ -43,8 +43,10 @@ interface PaymentState {
   isLoading: boolean;
   error: string | null;
   virtualAccountError: string | null;
+  needsSetup: boolean;
 
   fetchVirtualAccount: () => Promise<void>;
+  ensureSetup: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   clearError: () => void;
   clearVirtualAccountError: () => void;
@@ -58,6 +60,7 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
   isLoading: false,
   error: null,
   virtualAccountError: null,
+  needsSetup: false,
 
   fetchVirtualAccount: async () => {
     set({ isLoading: true, error: null });
@@ -81,11 +84,47 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
         isLoading: false,
       });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isNotFound =
+        msg.toLowerCase().includes("not found") ||
+        msg.toLowerCase().includes("404");
+      set({
+        needsSetup: isNotFound,
+        error: isNotFound ? null : msg,
+        isLoading: false,
+      });
+    }
+  },
+
+  ensureSetup: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await apiService.post<VirtualAccountResponse>(
+        "/account/ensure-setup",
+        {}
+      );
+      const va = data.virtual_account;
+      set({
+        virtualAccount: {
+          account_number: va.account_number,
+          account_name: va.account_name,
+          bank_name: va.bank_name,
+          bank_code: va.bank_code,
+          customer_identifier: va.customer_identifier,
+          balance: va.balance ?? 0,
+          total_deposited: va.total_deposited ?? 0,
+          status: "active",
+        },
+        needsSetup: false,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
       set({
         error:
           error instanceof Error
             ? error.message
-            : "Failed to fetch virtual account",
+            : "Failed to create virtual account",
         isLoading: false,
       });
     }

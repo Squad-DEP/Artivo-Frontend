@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Wallet,
   TrendingDown,
+  Sparkles,
 } from "lucide-react";
 import { usePaymentStore } from "@/store/paymentStore";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ function formatNGN(amount: number): string {
 }
 
 export function VirtualAccountCard() {
-  const { virtualAccount, isLoading, error, fetchVirtualAccount } =
+  const { virtualAccount, isLoading, error, needsSetup, fetchVirtualAccount, ensureSetup } =
     usePaymentStore();
   const [copied, setCopied] = useState(false);
 
@@ -55,6 +56,38 @@ export function VirtualAccountCard() {
     );
   }
 
+  if (needsSetup) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center space-y-4">
+        <div className="flex justify-center">
+          <div className="rounded-full bg-primary/10 p-3">
+            <Wallet className="w-6 h-6 text-primary" />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-foreground">
+            No virtual account yet
+          </p>
+          <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+            Set up your dedicated bank account to fund your wallet and start hiring.
+          </p>
+        </div>
+        <Button
+          onClick={() => ensureSetup()}
+          disabled={isLoading}
+          className="gap-2"
+        >
+          {isLoading ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+          {isLoading ? "Setting up..." : "Get your virtual account"}
+        </Button>
+      </div>
+    );
+  }
+
   if (!virtualAccount && error) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
@@ -64,9 +97,7 @@ export function VirtualAccountCard() {
             <p className="text-sm font-medium text-foreground">
               Virtual Account
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Unable to load account. Please try again.
-            </p>
+            <p className="text-xs text-destructive mt-0.5">{error}</p>
           </div>
           <Button
             variant="ghost"
