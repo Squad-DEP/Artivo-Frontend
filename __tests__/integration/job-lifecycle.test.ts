@@ -180,7 +180,8 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
 
       expect(hireResult).toBe(true);
       const hireStateAfterHire = useHireFlowStore.getState();
-      expect(hireStateAfterHire.step).toBe("paying");
+      // Hire deducts from wallet and funds escrow immediately → complete
+      expect(hireStateAfterHire.step).toBe("complete");
       expect(hireStateAfterHire.job).toEqual({
         id: "job-001",
         status: "pending",
@@ -199,64 +200,25 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
         })
       );
 
-      // ─── Step 4: Log payment → verify step = "complete" ───
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          payment_log: {
-            id: "pl-001",
-            squad_transaction_id: "txn-squad-abc123",
-            amount: 15000,
-            status: "success",
-          },
-        }),
-      });
-
-      const payResult = await useHireFlowStore
-        .getState()
-        .logPayment("job-001", "txn-squad-abc123", 15000);
-
-      expect(payResult).toBe(true);
-      const hireStateAfterPay = useHireFlowStore.getState();
-      expect(hireStateAfterPay.step).toBe("complete");
-      expect(hireStateAfterPay.paymentLog).toEqual({
-        id: "pl-001",
-        squad_transaction_id: "txn-squad-abc123",
-        amount: 15000,
-        status: "success",
-      });
-
-      // Verify payment endpoint called correctly
-      expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8080/api/v1/customer/payment",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            job_id: "job-001",
-            squad_transaction_id: "txn-squad-abc123",
-            amount: 15000,
-            status: "success",
-          }),
-        })
-      );
-
-      // ─── Step 5: Complete job → POST /customer/complete-job/:id ───
+      // ─── Step 4: Complete job → POST /customer/jobs/:id/complete ───
       mockedApiService.post.mockResolvedValueOnce({
-        job: { id: "job-001", status: "customer_completed" },
-        msg: "Job marked as complete",
+        success: true,
+        released: false,
+        worker_confirmed: false,
+        customer_confirmed: true,
+        msg: "Your confirmation recorded. Waiting for worker to confirm.",
       });
 
-      const completeResult = await apiService.post("/customer/complete-job/:id", {
+      const completeResult = await apiService.post("/customer/jobs/:id/complete", {
         params: { id: "job-001" },
       });
 
-      expect(completeResult).toEqual({
-        job: { id: "job-001", status: "customer_completed" },
-        msg: "Job marked as complete",
+      expect(completeResult).toMatchObject({
+        success: true,
+        customer_confirmed: true,
       });
       expect(mockedApiService.post).toHaveBeenCalledWith(
-        "/customer/complete-job/:id",
+        "/customer/jobs/:id/complete",
         { params: { id: "job-001" } }
       );
 
@@ -323,24 +285,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
 
       await useHireFlowStore.getState().hireWorker("jr-100", "worker-2", 8000);
 
-      expect(useHireFlowStore.getState().step).toBe("paying");
-
-      // Step 3: logPayment transitions paying → logging → complete
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          payment_log: {
-            id: "pl-100",
-            squad_transaction_id: "txn-xyz",
-            amount: 8000,
-            status: "success",
-          },
-        }),
-      });
-
-      await useHireFlowStore.getState().logPayment("job-100", "txn-xyz", 8000);
-
+      // Hire deducts wallet balance and funds escrow immediately
       expect(useHireFlowStore.getState().step).toBe("complete");
     });
 
@@ -393,28 +338,17 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
       expect(useHireFlowStore.getState().step).toBe("hiring");
       expect(useHireFlowStore.getState().error).toBe("Worker unavailable");
 
-      // Advance to paying step
+      // Advance to complete step (hire deducts wallet and funds escrow)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({
-          job: { id: "job-200", status: "pending", created_at: "2024-01-01" },
+          job: { id: "job-200", status: "in_progress", created_at: "2024-01-01" },
+          escrow: { status: "funded" },
         }),
       });
       await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000);
-      expect(useHireFlowStore.getState().step).toBe("paying");
-
-      // logPayment failure → reverts to paying
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ msg: "Payment logging failed" }),
-      });
-
-      await useHireFlowStore.getState().logPayment("job-200", "txn-fail", 5000);
-
-      expect(useHireFlowStore.getState().step).toBe("paying");
-      expect(useHireFlowStore.getState().error).toBe("Payment logging failed");
+      expect(useHireFlowStore.getState().step).toBe("complete");
     });
   });
 

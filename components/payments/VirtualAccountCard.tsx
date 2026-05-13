@@ -1,30 +1,53 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  AlertCircle,
   Building2,
-  CheckCircle2,
-  Clock,
   Copy,
+  Check,
   RefreshCw,
+  Wallet,
+  TrendingDown,
 } from "lucide-react";
 import { usePaymentStore } from "@/store/paymentStore";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+function formatNGN(amount: number): string {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
 
 export function VirtualAccountCard() {
   const { virtualAccount, isLoading, error, fetchVirtualAccount } =
     usePaymentStore();
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchVirtualAccount();
   }, [fetchVirtualAccount]);
 
+  const handleCopy = async () => {
+    if (!virtualAccount?.account_number) return;
+    try {
+      await navigator.clipboard.writeText(virtualAccount.account_number);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard not available
+    }
+  };
+
   if (isLoading && !virtualAccount) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center gap-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#FF6200]" />
-          <span className="text-sm text-gray-500">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+          <span className="text-sm text-muted-foreground">
             Loading account details...
           </span>
         </div>
@@ -32,121 +55,133 @@ export function VirtualAccountCard() {
     );
   }
 
-  // Failed creation state with error banner and auto-retry indicator
-  if (virtualAccount?.status === "failed" || (!virtualAccount && error)) {
+  if (!virtualAccount && error) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center gap-3">
-          <Building2 className="w-5 h-5 text-gray-400" />
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">
+          <Building2 className="w-5 h-5 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">
               Virtual Account
-            </h3>
-            <p className="mt-0.5 text-sm text-gray-500">
-              Your virtual account will appear here once it&apos;s set up.
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Unable to load account. Please try again.
             </p>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchVirtualAccount()}
+            className="gap-1"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry
+          </Button>
         </div>
       </div>
     );
   }
 
-  if (!virtualAccount) {
-    return null;
-  }
-
-  const statusConfig = {
-    active: {
-      icon: CheckCircle2,
-      label: "Active",
-      className: "text-green-600 bg-green-50",
-    },
-    pending: {
-      icon: Clock,
-      label: "Pending",
-      className: "text-yellow-600 bg-yellow-50",
-    },
-    failed: {
-      icon: AlertCircle,
-      label: "Failed",
-      className: "text-red-600 bg-red-50",
-    },
-  };
-
-  const status = statusConfig[virtualAccount.status];
-  const StatusIcon = status.icon;
-
-  const handleCopyAccountNumber = async () => {
-    try {
-      await navigator.clipboard.writeText(virtualAccount.account_number);
-    } catch {
-      // Fallback for environments without clipboard API
-    }
-  };
+  if (!virtualAccount) return null;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-gray-600" />
-          <h3 className="text-sm font-semibold text-gray-900">
-            Virtual Account
-          </h3>
+    <div className="space-y-4">
+      {/* Balance card */}
+      <div className="rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-6">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 opacity-80" />
+            <span className="text-sm font-medium opacity-80">
+              Wallet Balance
+            </span>
+          </div>
+          <button
+            onClick={() => fetchVirtualAccount()}
+            className="p-1 rounded-md hover:bg-white/10 transition-colors"
+            aria-label="Refresh balance"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+          </button>
         </div>
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}
-        >
-          <StatusIcon className="w-3.5 h-3.5" />
-          {status.label}
-        </span>
-      </div>
 
-      {virtualAccount.status === "pending" && (
-        <div className="mb-4 flex items-center gap-2 rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2">
-          <Clock className="w-4 h-4 text-yellow-600 shrink-0" />
-          <p className="text-xs text-yellow-700">
-            Your account is being set up. This usually takes less than 30
-            seconds.
+        <div className="mb-6">
+          <p className="text-3xl font-bold tracking-tight">
+            {formatNGN(virtualAccount.balance)}
           </p>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <div>
-          <p className="text-xs text-gray-500">Account Number</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-sm font-medium text-gray-900">
-              {virtualAccount.account_number}
-            </p>
-            <button
-              onClick={handleCopyAccountNumber}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Copy account number"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex items-center gap-1.5 mt-1 opacity-70">
+            <TrendingDown className="w-3.5 h-3.5" />
+            <span className="text-xs">
+              {formatNGN(virtualAccount.total_deposited)} total deposited
+            </span>
           </div>
         </div>
 
-        <div>
-          <p className="text-xs text-gray-500">Bank Name</p>
-          <p className="text-sm font-medium text-gray-900 mt-0.5">
-            {virtualAccount.bank_name}
-          </p>
+        <div className="bg-white/10 rounded-lg p-3 space-y-1">
+          <p className="text-xs opacity-70">Account Number</p>
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-mono font-semibold tracking-wider">
+              {virtualAccount.account_number}
+            </p>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 transition-colors"
+              aria-label={copied ? "Copied" : "Copy account number"}
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Account details + funding instructions */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">
+            Bank Details
+          </h3>
         </div>
 
-        <div>
-          <p className="text-xs text-gray-500">Bank Code</p>
-          <p className="text-sm font-medium text-gray-900 mt-0.5">
-            {virtualAccount.bank_code}
-          </p>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Bank Name</p>
+            <p className="font-medium mt-0.5">{virtualAccount.bank_name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Bank Code</p>
+            <p className="font-medium mt-0.5">{virtualAccount.bank_code}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-xs text-muted-foreground">Account Name</p>
+            <p className="font-medium mt-0.5">{virtualAccount.account_name}</p>
+          </div>
         </div>
 
-        <div>
-          <p className="text-xs text-gray-500">Account Name</p>
-          <p className="text-sm font-medium text-gray-900 mt-0.5">
-            {virtualAccount.account_name}
+        <div className="border-t border-border pt-4">
+          <p className="text-xs font-medium text-foreground mb-2">
+            How to fund your wallet
           </p>
+          <ol className="space-y-1.5 text-xs text-muted-foreground list-decimal list-inside">
+            <li>Open your bank app or USSD</li>
+            <li>
+              Transfer to{" "}
+              <span className="font-medium text-foreground">
+                {virtualAccount.bank_name}
+              </span>
+            </li>
+            <li>
+              Account number:{" "}
+              <span className="font-mono font-medium text-foreground">
+                {virtualAccount.account_number}
+              </span>
+            </li>
+            <li>Your balance updates automatically within seconds</li>
+          </ol>
         </div>
       </div>
     </div>

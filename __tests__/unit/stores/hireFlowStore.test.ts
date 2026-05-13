@@ -336,33 +336,32 @@ describe("hireFlowStore", () => {
     });
   });
 
-  describe("logPayment()", () => {
-    it("should transition step to 'complete' and store paymentLog on success", async () => {
-      const responseData = {
-        payment_log: {
-          id: "pl-001",
-          squad_transaction_id: "txn-abc-123",
-          amount: 15000,
-          status: "success",
-        },
-      };
-
+  describe("verifyPayment()", () => {
+    it("should transition step to 'complete' and store paymentResult on success", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => responseData,
+        json: async () => ({
+          payment_log: {
+            id: "pl-001",
+            squadTransactionId: "txn-abc-123",
+            amount: 1500000,
+            status: "success",
+            jobId: "job-001",
+          },
+          msg: "Payment verified",
+        }),
       });
 
       const result = await useHireFlowStore
         .getState()
-        .logPayment("job-001", "txn-abc-123", 15000);
+        .verifyPayment("job-001", "txn-abc-123", 15000);
 
       expect(result).toBe(true);
       const state = useHireFlowStore.getState();
       expect(state.step).toBe("complete");
-      expect(state.paymentLog).toEqual({
-        id: "pl-001",
-        squad_transaction_id: "txn-abc-123",
+      expect(state.paymentResult).toMatchObject({
+        transactionReference: "txn-abc-123",
         amount: 15000,
         status: "success",
       });
@@ -373,63 +372,41 @@ describe("hireFlowStore", () => {
     it("should revert step to 'paying' on failure", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        status: 500,
-        json: async () => ({ msg: "Payment logging failed" }),
+        status: 400,
+        json: async () => ({ msg: "Transaction not found" }),
       });
 
       const result = await useHireFlowStore
         .getState()
-        .logPayment("job-001", "txn-abc-123", 15000);
+        .verifyPayment("job-001", "txn-abc-123", 15000);
 
       expect(result).toBe(false);
       const state = useHireFlowStore.getState();
       expect(state.step).toBe("paying");
-      expect(state.error).toBe("Payment logging failed");
-      expect(state.paymentLog).toBeNull();
+      expect(state.error).toBeDefined();
+      expect(state.paymentResult).toBeNull();
       expect(state.isLoading).toBe(false);
     });
 
-    it("should revert step to 'paying' on network error", async () => {
-      mockFetch.mockRejectedValueOnce(new Error("Failed to log payment"));
-
-      const result = await useHireFlowStore
-        .getState()
-        .logPayment("job-001", "txn-abc-123", 15000);
-
-      expect(result).toBe(false);
-      const state = useHireFlowStore.getState();
-      expect(state.step).toBe("paying");
-      expect(state.error).toBe("Failed to log payment");
-      expect(state.isLoading).toBe(false);
-    });
-
-    it("should send correct payload to the payment endpoint", async () => {
+    it("should send correct payload to verify-payment endpoint", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({
-          payment_log: {
-            id: "pl-001",
-            squad_transaction_id: "txn-xyz",
-            amount: 25000,
-            status: "success",
-          },
+          payment_log: { id: "pl-002", squadTransactionId: "txn-xyz", amount: 2500000, status: "success", jobId: "job-002" },
+          msg: "ok",
         }),
       });
 
-      await useHireFlowStore
-        .getState()
-        .logPayment("job-002", "txn-xyz", 25000);
+      await useHireFlowStore.getState().verifyPayment("job-002", "txn-xyz", 25000);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8080/api/v1/customer/payment",
+        "http://localhost:8080/api/v1/customer/verify-payment",
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({
             job_id: "job-002",
-            squad_transaction_id: "txn-xyz",
-            amount: 25000,
-            status: "success",
+            transaction_reference: "txn-xyz",
           }),
         })
       );
@@ -467,7 +444,7 @@ describe("hireFlowStore", () => {
       const state = useHireFlowStore.getState();
       expect(state.jobRequest).toBeNull();
       expect(state.job).toBeNull();
-      expect(state.paymentLog).toBeNull();
+      expect(state.paymentResult).toBeNull();
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
       expect(state.validationErrors).toEqual({});

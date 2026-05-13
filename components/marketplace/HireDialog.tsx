@@ -23,7 +23,7 @@ import { useHireFlowStore } from "@/store/hireFlowStore";
 import { useWorkerJobStore } from "@/store/workerJobStore";
 import { useAuthStore } from "@/store/authStore";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 interface HireDialogProps {
   isOpen: boolean;
@@ -69,9 +69,9 @@ export function HireDialog({
     isLoading,
     error,
     validationErrors,
+    insufficientBalance,
     createJobRequest,
     hireWorker,
-    openSquadModal,
     reset,
   } = useHireFlowStore();
 
@@ -97,15 +97,19 @@ export function HireDialog({
     }
   }, [isOpen, reset]);
 
-  // Show success toast when payment is confirmed
+  // Show success toast when hire completes
   React.useEffect(() => {
-    if (step === "complete" && paymentResult) {
-      showToast(`Payment of ₦${paymentResult.amount.toLocaleString()} confirmed`, {
-        variant: "success",
-        detail: `Ref: ${paymentResult.transactionReference}`,
-      });
+    if (step === "complete") {
+      if (paymentResult) {
+        showToast(`Payment of ₦${paymentResult.amount.toLocaleString()} confirmed`, {
+          variant: "success",
+          detail: `Ref: ${paymentResult.transactionReference}`,
+        });
+      } else if (job) {
+        showToast(`${workerName} hired successfully`, { variant: "success" });
+      }
     }
-  }, [step, paymentResult, showToast]);
+  }, [step, paymentResult, job, workerName, showToast]);
 
   const numericBudget = parseFloat(budget);
   const isFormValid =
@@ -133,14 +137,14 @@ export function HireDialog({
     await hireWorker(jobRequest.id, workerId, numericBudget);
   };
 
-  const handleOpenPayment = () => {
-    if (!job) return;
-    openSquadModal(user?.email ?? "", numericBudget, job.id);
-  };
-
   const handleViewJob = () => {
     if (job) router.push(`/dashboard/jobs/${job.id}`);
     onClose();
+  };
+
+  const handleGoToWallet = () => {
+    onClose();
+    router.push("/dashboard/payments");
   };
 
   return (
@@ -291,7 +295,9 @@ export function HireDialog({
             <>
               <DialogHeader>
                 <DialogTitle>Confirm Hire</DialogTitle>
-                <DialogDescription>Review the details below and confirm hiring.</DialogDescription>
+                <DialogDescription>
+                  Payment will be deducted from your wallet and held in escrow.
+                </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -305,82 +311,61 @@ export function HireDialog({
                     <span className="text-sm font-medium">{title}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Amount</span>
-                    <span className="text-sm font-medium">₦{numericBudget.toLocaleString()}</span>
+                    <span className="text-sm text-muted-foreground">Amount (from wallet)</span>
+                    <span className="text-sm font-semibold">₦{numericBudget.toLocaleString()}</span>
                   </div>
                 </div>
 
-                {error && (
+                {/* Insufficient balance error */}
+                {insufficientBalance ? (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950 p-4 space-y-3">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                      Insufficient wallet balance
+                    </p>
+                    <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                      <div className="flex justify-between">
+                        <span>Available</span>
+                        <span>₦{insufficientBalance.available.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between font-medium">
+                        <span>Required</span>
+                        <span>₦{insufficientBalance.required.toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleGoToWallet}
+                    >
+                      Fund Wallet
+                    </Button>
+                  </div>
+                ) : error && (
                   <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3" role="alert">
                     <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
 
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
-                  <Button type="button" onClick={handleHireWorker} disabled={isLoading}>
-                    {isLoading ? <><Spinner className="size-4 mr-2" />Hiring...</> : "Confirm & Pay"}
-                  </Button>
-                </DialogFooter>
-              </div>
-            </>
-          )}
-
-          {/* ── Step 3: Pay via Squad ────────────────────────────────── */}
-          {step === "paying" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Complete Payment</DialogTitle>
-                <DialogDescription>
-                  Pay ₦{numericBudget.toLocaleString()} to proceed with hiring {workerName}.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <div className="rounded-md border p-4 text-center space-y-1">
-                  <p className="text-2xl font-bold">₦{numericBudget.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Processed securely via Squad</p>
-                </div>
-
-                {error && (
-                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3" role="alert">
-                    <p className="text-sm text-destructive">{error}</p>
-                  </div>
+                {!insufficientBalance && (
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
+                    <Button type="button" onClick={handleHireWorker} disabled={isLoading}>
+                      {isLoading ? <><Spinner className="size-4 mr-2" />Hiring...</> : "Confirm & Pay from Wallet"}
+                    </Button>
+                  </DialogFooter>
                 )}
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                  <Button type="button" onClick={handleOpenPayment}>Pay with Squad</Button>
-                </DialogFooter>
               </div>
             </>
           )}
 
-          {/* ── Step 3b: Verifying with backend ─────────────────────── */}
-          {step === "verifying" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Verifying Payment</DialogTitle>
-                <DialogDescription>
-                  Confirming your payment with our payment provider…
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="flex flex-col items-center justify-center py-8 gap-3">
-                <ShieldCheck className="size-10 text-primary opacity-40" />
-                <Spinner className="size-6 text-primary" />
-                <p className="text-sm text-muted-foreground">This usually takes a few seconds.</p>
-              </div>
-            </>
-          )}
-
-          {/* ── Step 4: Success ──────────────────────────────────────── */}
-          {step === "complete" && paymentResult && (
+          {/* ── Step: Success ──────────────────────────────────────── */}
+          {step === "complete" && (
             <>
               <DialogHeader>
                 <DialogTitle>Hire Successful!</DialogTitle>
                 <DialogDescription>
-                  You&apos;ve hired {workerName}. Funds are held in escrow until the job is done.
+                  You&apos;ve hired {workerName}. Funds are held in escrow until both parties confirm the job is done.
                 </DialogDescription>
               </DialogHeader>
 
@@ -389,12 +374,12 @@ export function HireDialog({
                   <div className="flex items-center justify-center">
                     <CheckCircle2 className="size-10 text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <div className="text-center space-y-0.5">
+                  <div className="text-center space-y-1">
                     <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
-                      ₦{paymentResult.amount.toLocaleString()} confirmed
+                      ₦{numericBudget.toLocaleString()} in escrow
                     </p>
-                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 font-mono">
-                      {paymentResult.transactionReference}
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                      Funds release when both parties confirm completion
                     </p>
                   </div>
                   <div className="border-t border-emerald-200 dark:border-emerald-700 pt-3 space-y-1.5">
@@ -405,12 +390,6 @@ export function HireDialog({
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Job</span>
                       <span className="font-medium">{title}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Status</span>
-                      <span className="font-medium text-emerald-600 dark:text-emerald-400 capitalize">
-                        {paymentResult.status}
-                      </span>
                     </div>
                   </div>
                 </div>

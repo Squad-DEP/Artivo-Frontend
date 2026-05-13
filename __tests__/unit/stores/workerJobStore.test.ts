@@ -90,7 +90,7 @@ let mockEventSourceInstances: MockEventSource[] = [];
 
 // Get the mocked apiService
 import { apiService } from "@/api/api-service";
-const mockApiService = apiService as {
+const mockApiService = apiService as unknown as {
   get: ReturnType<typeof vi.fn>;
   post: ReturnType<typeof vi.fn>;
 };

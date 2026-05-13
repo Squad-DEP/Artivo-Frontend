@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { usePaymentStore } from "@/store/paymentStore";
 
-// Mock the API service
 vi.mock("@/api/api-service", () => ({
   apiService: {
     post: vi.fn(),
@@ -16,26 +15,26 @@ const mockedApiService = vi.mocked(apiService);
 describe("paymentStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset store state
     usePaymentStore.setState({
       virtualAccount: null,
       transactions: [],
-      totalTransactions: 0,
-      currentPage: 1,
       isLoading: false,
       error: null,
-      retryAttempts: {},
+      virtualAccountError: null,
     });
   });
 
   describe("fetchVirtualAccount", () => {
-    it("should fetch and store virtual account data", async () => {
+    it("should fetch and store virtual account data including balance", async () => {
       const mockResponse = {
         virtual_account: {
-          virtual_account_number: "1234567890",
-          virtual_account_name: "John Doe",
+          account_number: "1234567890",
+          account_name: "John Doe",
           bank_name: "Squad Bank",
           bank_code: "058",
+          customer_identifier: "artivo-user-123",
+          balance: 50000,
+          total_deposited: 150000,
         },
       };
 
@@ -44,14 +43,16 @@ describe("paymentStore", () => {
       await usePaymentStore.getState().fetchVirtualAccount();
       const state = usePaymentStore.getState();
 
-      expect(mockedApiService.get).toHaveBeenCalledWith("/user/virtual-account");
+      expect(mockedApiService.get).toHaveBeenCalledWith("/account/virtual-account");
       expect(state.virtualAccount).toEqual({
         account_number: "1234567890",
         account_name: "John Doe",
         bank_name: "Squad Bank",
         bank_code: "058",
+        customer_identifier: "artivo-user-123",
+        balance: 50000,
+        total_deposited: 150000,
         status: "active",
-        created_at: expect.any(String),
       });
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
@@ -71,7 +72,7 @@ describe("paymentStore", () => {
     });
 
     it("should set isLoading to true during fetch", async () => {
-      let resolvePromise: (value: unknown) => void;
+      let resolvePromise!: (value: unknown) => void;
       const promise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
@@ -80,213 +81,57 @@ describe("paymentStore", () => {
       const fetchPromise = usePaymentStore.getState().fetchVirtualAccount();
       expect(usePaymentStore.getState().isLoading).toBe(true);
 
-      resolvePromise!({
-        account_number: "123",
-        bank_name: "Test",
-        account_name: "Test",
-        status: "active",
-        created_at: "2024-01-01",
+      resolvePromise({
+        virtual_account: {
+          account_number: "123",
+          bank_name: "Test",
+          account_name: "Test",
+          bank_code: "000",
+          customer_identifier: "test-id",
+          balance: 0,
+          total_deposited: 0,
+        },
       });
       await fetchPromise;
 
       expect(usePaymentStore.getState().isLoading).toBe(false);
     });
-  });
 
-  describe("initiatePayment", () => {
-    it("should initiate payment with valid amount", async () => {
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "mobile_money", 5000);
-
-      expect(result).toBe(true);
-      expect(mockedApiService.post).toHaveBeenCalledWith(
-        "/payments/initiate",
-        {
-          body: {
-            job_id: "job-1",
-            stage_id: "stage-1",
-            payment_method: "mobile_money",
-            amount: 5000,
-          },
-        }
-      );
-      expect(usePaymentStore.getState().isLoading).toBe(false);
-      expect(usePaymentStore.getState().error).toBeNull();
-    });
-
-    it("should reject amount below 100 NGN", async () => {
-      const result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "bank_transfer", 50);
-
-      expect(result).toBe(false);
-      expect(mockedApiService.post).not.toHaveBeenCalled();
-      expect(usePaymentStore.getState().error).toBe(
-        "Payment amount must be at least 100 NGN"
-      );
-    });
-
-    it("should reject amount above 10,000,000 NGN", async () => {
-      const result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "wallet", 10_000_001);
-
-      expect(result).toBe(false);
-      expect(mockedApiService.post).not.toHaveBeenCalled();
-      expect(usePaymentStore.getState().error).toBe(
-        "Payment amount must be at most 10,000,000 NGN"
-      );
-    });
-
-    it("should accept minimum valid amount (100 NGN)", async () => {
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "mobile_money", 100);
-
-      expect(result).toBe(true);
-    });
-
-    it("should accept maximum valid amount (10,000,000 NGN)", async () => {
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "bank_transfer", 10_000_000);
-
-      expect(result).toBe(true);
-    });
-
-    it("should set error on API failure", async () => {
-      mockedApiService.post.mockRejectedValueOnce(
-        new Error("Payment gateway unavailable")
-      );
-
-      const result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "wallet", 5000);
-
-      expect(result).toBe(false);
-      expect(usePaymentStore.getState().error).toBe(
-        "Payment gateway unavailable"
-      );
-      expect(usePaymentStore.getState().isLoading).toBe(false);
-    });
-  });
-
-  describe("retryPayment", () => {
-    it("should retry a failed payment successfully", async () => {
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const result = await usePaymentStore
-        .getState()
-        .retryPayment("txn-1");
-
-      expect(result).toBe(true);
-      expect(mockedApiService.post).toHaveBeenCalledWith(
-        "/payments/:id/retry",
-        { params: { id: "txn-1" } }
-      );
-      expect(usePaymentStore.getState().retryAttempts["txn-1"]).toBe(1);
-    });
-
-    it("should track retry attempts per transaction", async () => {
-      mockedApiService.post.mockResolvedValue({});
-
-      await usePaymentStore.getState().retryPayment("txn-1");
-      await usePaymentStore.getState().retryPayment("txn-1");
-
-      expect(usePaymentStore.getState().retryAttempts["txn-1"]).toBe(2);
-    });
-
-    it("should block retry after 3 attempts", async () => {
-      // Set up state with 3 attempts already made
-      usePaymentStore.setState({
-        retryAttempts: { "txn-1": 3 },
+    it("should default balance and total_deposited to 0 when missing from response", async () => {
+      mockedApiService.get.mockResolvedValueOnce({
+        virtual_account: {
+          account_number: "9999",
+          account_name: "No Balance",
+          bank_name: "Bank",
+          bank_code: "001",
+          customer_identifier: "cust-001",
+        },
       });
 
-      const result = await usePaymentStore
-        .getState()
-        .retryPayment("txn-1");
+      await usePaymentStore.getState().fetchVirtualAccount();
+      const va = usePaymentStore.getState().virtualAccount!;
 
-      expect(result).toBe(false);
-      expect(mockedApiService.post).not.toHaveBeenCalled();
-      expect(usePaymentStore.getState().error).toBe(
-        "Maximum retry attempts (3) reached for this transaction"
-      );
-    });
-
-    it("should allow exactly 3 retry attempts", async () => {
-      mockedApiService.post.mockResolvedValue({});
-
-      // Attempt 1
-      const result1 = await usePaymentStore.getState().retryPayment("txn-1");
-      expect(result1).toBe(true);
-
-      // Attempt 2
-      const result2 = await usePaymentStore.getState().retryPayment("txn-1");
-      expect(result2).toBe(true);
-
-      // Attempt 3
-      const result3 = await usePaymentStore.getState().retryPayment("txn-1");
-      expect(result3).toBe(true);
-
-      // Attempt 4 should be blocked
-      const result4 = await usePaymentStore.getState().retryPayment("txn-1");
-      expect(result4).toBe(false);
-      expect(usePaymentStore.getState().retryAttempts["txn-1"]).toBe(3);
-    });
-
-    it("should increment retry count even on API failure", async () => {
-      mockedApiService.post.mockRejectedValueOnce(
-        new Error("Network error")
-      );
-
-      const result = await usePaymentStore
-        .getState()
-        .retryPayment("txn-1");
-
-      expect(result).toBe(false);
-      expect(usePaymentStore.getState().retryAttempts["txn-1"]).toBe(1);
-      expect(usePaymentStore.getState().error).toBe("Network error");
-    });
-
-    it("should track retry attempts independently per transaction", async () => {
-      mockedApiService.post.mockResolvedValue({});
-
-      await usePaymentStore.getState().retryPayment("txn-1");
-      await usePaymentStore.getState().retryPayment("txn-2");
-      await usePaymentStore.getState().retryPayment("txn-1");
-
-      const state = usePaymentStore.getState();
-      expect(state.retryAttempts["txn-1"]).toBe(2);
-      expect(state.retryAttempts["txn-2"]).toBe(1);
+      expect(va.balance).toBe(0);
+      expect(va.total_deposited).toBe(0);
     });
   });
 
   describe("fetchTransactions", () => {
-    it("should fetch transactions with default pagination", async () => {
+    it("should fetch and store Squad transactions", async () => {
       const mockResponse = {
         transactions: [
           {
-            id: "txn-1",
-            type: "credit" as const,
-            amount: 5000,
+            transaction_reference: "ref-abc-001",
+            virtual_account_number: "8012345678",
+            transaction_indicator: "C",
+            principal_amount: "500000",
+            settled_amount: "500000",
+            fee_charged: "0",
+            remarks: "top-up",
             currency: "NGN",
-            status: "completed" as const,
-            payment_method: "mobile_money" as const,
-            counterparty_name: "Jane Doe",
-            job_reference: "job-1",
-            created_at: "2024-01-15T10:00:00Z",
-            completed_at: "2024-01-15T10:01:00Z",
+            transaction_date: "2024-01-15T10:00:00Z",
           },
         ],
-        total: 1,
-        page: 1,
       };
 
       mockedApiService.get.mockResolvedValueOnce(mockResponse);
@@ -294,55 +139,24 @@ describe("paymentStore", () => {
       await usePaymentStore.getState().fetchTransactions();
       const state = usePaymentStore.getState();
 
-      expect(mockedApiService.get).toHaveBeenCalledWith(
-        "/payments/transactions",
-        {
-          query: {
-            page: "1",
-            limit: "20",
-            sort: "created_at",
-            order: "desc",
-          },
-        }
-      );
+      expect(mockedApiService.get).toHaveBeenCalledWith("/account/transactions");
       expect(state.transactions).toHaveLength(1);
-      expect(state.transactions[0].id).toBe("txn-1");
-      expect(state.totalTransactions).toBe(1);
-      expect(state.currentPage).toBe(1);
+      expect(state.transactions[0].transaction_reference).toBe("ref-abc-001");
+      expect(state.transactions[0].transaction_indicator).toBe("C");
+      expect(state.transactions[0].transaction_date).toBe("2024-01-15T10:00:00Z");
       expect(state.isLoading).toBe(false);
     });
 
-    it("should fetch transactions for a specific page", async () => {
-      const mockResponse = {
-        transactions: [],
-        total: 50,
-        page: 3,
-      };
+    it("should default to empty array when response has no transactions", async () => {
+      mockedApiService.get.mockResolvedValueOnce({ transactions: null });
 
-      mockedApiService.get.mockResolvedValueOnce(mockResponse);
+      await usePaymentStore.getState().fetchTransactions();
 
-      await usePaymentStore.getState().fetchTransactions(3);
-      const state = usePaymentStore.getState();
-
-      expect(mockedApiService.get).toHaveBeenCalledWith(
-        "/payments/transactions",
-        {
-          query: {
-            page: "3",
-            limit: "20",
-            sort: "created_at",
-            order: "desc",
-          },
-        }
-      );
-      expect(state.currentPage).toBe(3);
-      expect(state.totalTransactions).toBe(50);
+      expect(usePaymentStore.getState().transactions).toEqual([]);
     });
 
     it("should set error on API failure", async () => {
-      mockedApiService.get.mockRejectedValueOnce(
-        new Error("Server error")
-      );
+      mockedApiService.get.mockRejectedValueOnce(new Error("Server error"));
 
       await usePaymentStore.getState().fetchTransactions();
       const state = usePaymentStore.getState();
@@ -358,6 +172,14 @@ describe("paymentStore", () => {
       usePaymentStore.setState({ error: "Some error" });
       usePaymentStore.getState().clearError();
       expect(usePaymentStore.getState().error).toBeNull();
+    });
+  });
+
+  describe("clearVirtualAccountError", () => {
+    it("should clear the virtualAccountError state", () => {
+      usePaymentStore.setState({ virtualAccountError: "VA error" });
+      usePaymentStore.getState().clearVirtualAccountError();
+      expect(usePaymentStore.getState().virtualAccountError).toBeNull();
     });
   });
 });

@@ -1,64 +1,45 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePaymentStore, type Transaction } from "@/store/paymentStore";
+import { usePaymentStore, type SquadTransaction } from "@/store/paymentStore";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-const PAGE_SIZE = 20;
+import { RefreshCw } from "lucide-react";
 
 function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-NG", {
+  return new Date(dateString).toLocaleDateString("en-NG", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
 }
 
-function formatAmount(amount: number, currency: string): string {
+function formatNGN(koboString: string): string {
+  const naira = parseFloat(koboString) / 100;
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: currency || "NGN",
+    currency: "NGN",
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(naira);
 }
 
-function formatPaymentMethod(method: Transaction["payment_method"]): string {
-  const labels: Record<Transaction["payment_method"], string> = {
-    mobile_money: "Mobile Money",
-    bank_transfer: "Bank Transfer",
-    wallet: "Wallet",
-  };
-  return labels[method];
-}
-
-function StatusBadge({ status }: { status: Transaction["status"] }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        status === "completed" &&
-          "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-        status === "pending" &&
-          "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-        status === "failed" &&
-          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-      )}
-    >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  );
-}
-
-function TransactionRow({ transaction }: { transaction: Transaction }) {
-  const isCredit = transaction.type === "credit";
+function TransactionRow({ tx }: { tx: SquadTransaction }) {
+  const isCredit = tx.transaction_indicator === "C";
 
   return (
     <tr className="border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors">
       <td className="px-4 py-3">
-        <StatusBadge status={transaction.status} />
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+            isCredit
+              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+              : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+          )}
+        >
+          {isCredit ? "Deposit" : "Debit"}
+        </span>
       </td>
       <td
         className={cn(
@@ -67,63 +48,33 @@ function TransactionRow({ transaction }: { transaction: Transaction }) {
         )}
       >
         {isCredit ? "+" : "-"}
-        {formatAmount(transaction.amount, transaction.currency)}
+        {formatNGN(tx.principal_amount)}
       </td>
       <td className="px-4 py-3 text-muted-foreground text-sm">
-        {formatDate(transaction.created_at)}
+        {formatDate(tx.transaction_date)}
       </td>
-      <td className="px-4 py-3 text-sm">{transaction.counterparty_name}</td>
-      <td className="px-4 py-3 text-sm text-muted-foreground">
-        {formatPaymentMethod(transaction.payment_method)}
+      <td className="px-4 py-3 text-sm text-muted-foreground truncate max-w-[120px]">
+        {tx.remarks || "—"}
+      </td>
+      <td className="px-4 py-3 text-xs text-muted-foreground font-mono truncate max-w-[140px]">
+        {tx.transaction_reference}
       </td>
     </tr>
   );
 }
 
 export function TransactionList() {
-  const {
-    transactions,
-    totalTransactions,
-    currentPage,
-    isLoading,
-    error,
-    fetchTransactions,
-  } = usePaymentStore();
+  const { transactions, isLoading, error, fetchTransactions } = usePaymentStore();
 
   useEffect(() => {
-    fetchTransactions(1);
+    fetchTransactions();
   }, [fetchTransactions]);
-
-  const totalPages = Math.ceil(totalTransactions / PAGE_SIZE);
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      fetchTransactions(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      fetchTransactions(currentPage + 1);
-    }
-  };
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-border p-8 text-center">
-        <p className="text-muted-foreground">No transactions yet.</p>
-      </div>
-    );
-  }
 
   if (isLoading && transactions.length === 0) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-12 animate-pulse rounded-md bg-muted"
-          />
+          <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />
         ))}
       </div>
     );
@@ -131,74 +82,48 @@ export function TransactionList() {
 
   if (!isLoading && transactions.length === 0) {
     return (
-      <div className="rounded-lg border border-border p-8 text-center">
-        <p className="text-muted-foreground">No transactions yet.</p>
+      <div className="rounded-lg border border-border p-8 text-center space-y-2">
+        <p className="text-muted-foreground text-sm">No transactions yet.</p>
+        <p className="text-xs text-muted-foreground">
+          Fund your wallet with a bank transfer to see your history here.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => fetchTransactions()}
+          disabled={isLoading}
+          className="gap-1.5 text-xs"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+          Refresh
+        </Button>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-left">
           <thead className="border-b border-border bg-muted/50">
             <tr>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Status
-              </th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Amount
-              </th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Date
-              </th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Counterparty
-              </th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Payment Method
-              </th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Type</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Amount</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Date</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Remarks</th>
+              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Reference</th>
             </tr>
           </thead>
           <tbody>
-            {transactions.map((transaction) => (
-              <TransactionRow key={transaction.id} transaction={transaction} />
+            {transactions.map((tx) => (
+              <TransactionRow key={tx.transaction_reference} tx={tx} />
             ))}
           </tbody>
         </table>
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(currentPage - 1) * PAGE_SIZE + 1}–
-            {Math.min(currentPage * PAGE_SIZE, totalTransactions)} of{" "}
-            {totalTransactions} transactions
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePreviousPage}
-              disabled={currentPage <= 1 || isLoading}
-            >
-              Previous
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNextPage}
-              disabled={currentPage >= totalPages || isLoading}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

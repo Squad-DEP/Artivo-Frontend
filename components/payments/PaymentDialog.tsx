@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PaymentMethodSelector } from "@/components/payments/PaymentMethodSelector";
-import { usePaymentStore, type PaymentMethod } from "@/store/paymentStore";
+import { type PaymentMethod } from "@/store/paymentStore";
 import { validatePaymentAmount } from "@/lib/validators";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +48,10 @@ export function PaymentDialog({
   const [attempts, setAttempts] = React.useState(0);
   const [lastError, setLastError] = React.useState<string | null>(null);
 
-  const { initiatePayment, isLoading, error, clearError } = usePaymentStore();
+  const isLoading = false;
+  const error: string | null = null;
+  const clearError = () => {};
+  const initiatePayment = async (..._args: unknown[]) => false; // stage payments handled via wallet balance
 
   // Reset state when dialog opens
   React.useEffect(() => {

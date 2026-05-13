@@ -41,6 +41,8 @@ export interface HireFlowState {
   error: string | null;
   validationErrors: Record<string, string>;
   step: HireFlowStep;
+  /** Set when hire fails with 402 — contains available_balance and required amount */
+  insufficientBalance: { available: number; required: number } | null;
 
   // Actions
   createJobRequest: (data: CreateJobRequestPayload) => Promise<boolean>;
@@ -79,6 +81,20 @@ async function postWithValidation<T>(
     return { data: data as T, validationErrors: {}, errorMessage: null };
   }
 
+  if (response.status === 402) {
+    try {
+      const errorData = await response.json();
+      const err = new Error(errorData.msg || "Insufficient balance") as any;
+      err.statusCode = 402;
+      err.availableBalance = errorData.available_balance ?? 0;
+      err.required = errorData.required ?? 0;
+      throw err;
+    } catch (e: any) {
+      if (e.statusCode === 402) throw e;
+      throw new Error("Insufficient balance. Please fund your virtual account.");
+    }
+  }
+
   if (response.status === 422) {
     try {
       const errorData = await response.json();
@@ -113,6 +129,7 @@ const initialState = {
   error: null as string | null,
   validationErrors: {} as Record<string, string>,
   step: "idle" as HireFlowStep,
+  insufficientBalance: null as HireFlowState["insufficientBalance"],
 };
 
 export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
@@ -156,21 +173,31 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
   },
 
   hireWorker: async (jobRequestId: string, workerId: string, amount: number) => {
-    set({ isLoading: true, error: null, validationErrors: {}, step: "hiring" });
+    set({ isLoading: true, error: null, validationErrors: {}, insufficientBalance: null, step: "hiring" });
 
     try {
       const payload: HirePayload = { job_request_id: jobRequestId, worker_id: workerId, amount };
       const result = await postWithValidation<HireResponse>("/customer/hire", payload);
 
       if (result.data) {
-        set({ job: { id: result.data.job.id, status: result.data.job.status }, isLoading: false, step: "paying" });
+        // Hire deducted from balance and funded escrow — no Squad checkout needed
+        set({ job: { id: result.data.job.id, status: result.data.job.status }, isLoading: false, step: "complete" });
         return true;
       }
 
       set({ error: result.errorMessage, validationErrors: result.validationErrors, isLoading: false, step: "hiring" });
       return false;
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : "Failed to hire worker", isLoading: false, step: "hiring" });
+    } catch (error: any) {
+      if (error?.statusCode === 402) {
+        set({
+          insufficientBalance: { available: error.availableBalance, required: error.required },
+          error: error.message,
+          isLoading: false,
+          step: "hiring",
+        });
+      } else {
+        set({ error: error instanceof Error ? error.message : "Failed to hire worker", isLoading: false, step: "hiring" });
+      }
       return false;
     }
   },
