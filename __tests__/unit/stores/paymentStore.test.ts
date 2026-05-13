@@ -30,21 +30,29 @@ describe("paymentStore", () => {
 
   describe("fetchVirtualAccount", () => {
     it("should fetch and store virtual account data", async () => {
-      const mockAccount = {
-        account_number: "1234567890",
-        bank_name: "Squad Bank",
-        account_name: "John Doe",
-        status: "active" as const,
-        created_at: "2024-01-01T00:00:00Z",
+      const mockResponse = {
+        virtual_account: {
+          virtual_account_number: "1234567890",
+          virtual_account_name: "John Doe",
+          bank_name: "Squad Bank",
+          bank_code: "058",
+        },
       };
 
-      mockedApiService.get.mockResolvedValueOnce(mockAccount);
+      mockedApiService.get.mockResolvedValueOnce(mockResponse);
 
       await usePaymentStore.getState().fetchVirtualAccount();
       const state = usePaymentStore.getState();
 
-      expect(mockedApiService.get).toHaveBeenCalledWith("/payments/account");
-      expect(state.virtualAccount).toEqual(mockAccount);
+      expect(mockedApiService.get).toHaveBeenCalledWith("/user/virtual-account");
+      expect(state.virtualAccount).toEqual({
+        account_number: "1234567890",
+        account_name: "John Doe",
+        bank_name: "Squad Bank",
+        bank_code: "058",
+        status: "active",
+        created_at: expect.any(String),
+      });
       expect(state.isLoading).toBe(false);
       expect(state.error).toBeNull();
     });

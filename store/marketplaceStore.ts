@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { apiService } from "@/api/api-service";
-import type { WorkerProfileSummary, WorkerSearchResponse } from "@/api/types/worker";
+import type { WorkerProfileSummary } from "@/api/types/worker";
+import type { FeedResponse } from "@/api/types/marketplace-api";
+import { mapFeedWorkerToSummary } from "@/api/mappers/feed-mapper";
 import type { VerificationStatus, AvailabilityStatus } from "@/lib/constants/user-types";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -28,6 +30,7 @@ export interface MarketplaceState {
   searchQuery: string;
   filters: MarketplaceFilters;
   error: string | null;
+  matchExplanations: Record<string, string>;
 
   // Actions
   search: (query: string) => Promise<void>;
@@ -40,7 +43,9 @@ export interface MarketplaceState {
 
 /**
  * Constructs query parameters from the current search query, filters, and pagination state.
- * Only includes parameters that have defined, non-empty values.
+ * Maps frontend filter names to backend-expected parameter names:
+ * - `category` → `job_type_id`
+ * - `location.city` + `location.state` → `location` (comma-separated string)
  */
 export function buildQueryParams(
   query: string,
@@ -55,15 +60,18 @@ export function buildQueryParams(
   }
 
   if (filters.category) {
-    params.category = filters.category;
+    params.job_type_id = filters.category;
   }
 
-  if (filters.location?.city) {
-    params.city = filters.location.city;
-  }
+  if (filters.location?.city || filters.location?.state) {
+    const city = filters.location.city || "";
+    const state = filters.location.state || "";
 
-  if (filters.location?.state) {
-    params.state = filters.location.state;
+    if (city && state && city !== state) {
+      params.location = `${city}, ${state}`;
+    } else {
+      params.location = city || state;
+    }
   }
 
   if (filters.minRating !== undefined) {
@@ -107,6 +115,7 @@ const initialState = {
   searchQuery: "",
   filters: {} as MarketplaceFilters,
   error: null as string | null,
+  matchExplanations: {} as Record<string, string>,
 };
 
 export const useMarketplaceStore = create<MarketplaceState>()((set, get) => ({
@@ -119,17 +128,27 @@ export const useMarketplaceStore = create<MarketplaceState>()((set, get) => ({
       const { filters } = get();
       const queryParams = buildQueryParams(query, filters, 1, DEFAULT_PAGE_SIZE);
 
-      const response = await apiService.get<WorkerSearchResponse>(
-        "/workers/search",
+      const response = await apiService.get<FeedResponse>(
+        "/customer/feed",
         { query: queryParams }
       );
 
+      const workers = response.workers.map(mapFeedWorkerToSummary);
+
+      const matchExplanations: Record<string, string> = {};
+      for (const worker of response.workers) {
+        if (worker.match_explanation) {
+          matchExplanations[worker.id] = worker.match_explanation;
+        }
+      }
+
       set({
-        workers: response.workers,
-        total: response.total,
-        page: response.page,
-        hasMore: response.has_more,
+        workers,
+        total: response.workers.length,
+        page: 1,
+        hasMore: response.workers.length >= DEFAULT_PAGE_SIZE,
         isLoading: false,
+        matchExplanations,
       });
     } catch (error) {
       set({
@@ -152,17 +171,27 @@ export const useMarketplaceStore = create<MarketplaceState>()((set, get) => ({
       const { searchQuery, filters } = get();
       const queryParams = buildQueryParams(searchQuery, filters, 1, DEFAULT_PAGE_SIZE);
 
-      const response = await apiService.get<WorkerSearchResponse>(
-        "/workers/search",
+      const response = await apiService.get<FeedResponse>(
+        "/customer/feed",
         { query: queryParams }
       );
 
+      const workers = response.workers.map(mapFeedWorkerToSummary);
+
+      const matchExplanations: Record<string, string> = {};
+      for (const worker of response.workers) {
+        if (worker.match_explanation) {
+          matchExplanations[worker.id] = worker.match_explanation;
+        }
+      }
+
       set({
-        workers: response.workers,
-        total: response.total,
-        page: response.page,
-        hasMore: response.has_more,
+        workers,
+        total: response.workers.length,
+        page: 1,
+        hasMore: response.workers.length >= DEFAULT_PAGE_SIZE,
         isLoading: false,
+        matchExplanations,
       });
     } catch (error) {
       set({
@@ -183,17 +212,27 @@ export const useMarketplaceStore = create<MarketplaceState>()((set, get) => ({
       const nextPage = page + 1;
       const queryParams = buildQueryParams(searchQuery, filters, nextPage, DEFAULT_PAGE_SIZE);
 
-      const response = await apiService.get<WorkerSearchResponse>(
-        "/workers/search",
+      const response = await apiService.get<FeedResponse>(
+        "/customer/feed",
         { query: queryParams }
       );
 
+      const workers = response.workers.map(mapFeedWorkerToSummary);
+
+      const newExplanations: Record<string, string> = {};
+      for (const worker of response.workers) {
+        if (worker.match_explanation) {
+          newExplanations[worker.id] = worker.match_explanation;
+        }
+      }
+
       set((state) => ({
-        workers: [...state.workers, ...response.workers],
-        total: response.total,
-        page: response.page,
-        hasMore: response.has_more,
+        workers: [...state.workers, ...workers],
+        total: state.total + response.workers.length,
+        page: nextPage,
+        hasMore: response.workers.length >= DEFAULT_PAGE_SIZE,
         isLoading: false,
+        matchExplanations: { ...state.matchExplanations, ...newExplanations },
       }));
     } catch (error) {
       set({
@@ -207,12 +246,14 @@ export const useMarketplaceStore = create<MarketplaceState>()((set, get) => ({
     set({ isLoadingRecommendations: true, error: null });
 
     try {
-      const response = await apiService.get<WorkerSearchResponse>(
-        "/workers/recommendations"
+      const response = await apiService.get<FeedResponse>(
+        "/customer/feed"
       );
 
+      const recommendations = response.workers.map(mapFeedWorkerToSummary);
+
       set({
-        recommendations: response.workers,
+        recommendations,
         isLoadingRecommendations: false,
       });
     } catch (error) {

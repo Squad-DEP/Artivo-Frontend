@@ -13,8 +13,8 @@ type FormErrors = {
 };
 
 const formSchema = z.object({
-  email: z.string().min(5, "Email required").email("Invalid email"),
-  password: z.string().min(8, "Password must be at least 6 characters"),
+  email: z.string().min(1, "Email is required").email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export default function AuthLoginPage() {
@@ -45,13 +45,19 @@ export default function AuthLoginPage() {
 
       const success = await signIn(validatedData.email, validatedData.password);
       if (success) {
-        // Check if user has completed onboarding (has a user_type set)
         const { user } = useAuthStore.getState();
-        const userType = user?.user_metadata?.user_type;
+        const userType = user?.user_type || user?.user_metadata?.user_type;
 
         if (!userType) {
-          // No role selected yet, send to profile selection
+          // No role found, send to profile selection
           router.push("/register/profile");
+        } else if (!user?.onboarding_completed) {
+          // Role set but onboarding not done
+          if (userType === "worker") {
+            router.push("/onboarding/worker");
+          } else {
+            router.push("/onboarding/customer");
+          }
         } else {
           router.push("/dashboard");
         }

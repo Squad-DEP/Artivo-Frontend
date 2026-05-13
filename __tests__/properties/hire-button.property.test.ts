@@ -302,3 +302,72 @@ describe("Feature: gig-worker-platform, Property 6: Auth-Conditional Hire Button
     );
   });
 });
+
+
+// ─── Property 6: Rating is gated by job completion status ────────────────────
+
+import { isRatingEnabled } from "@/lib/utils/job-status";
+
+/**
+ * Property 6: Rating is gated by job completion status
+ *
+ * `isRatingEnabled(status)` returns true if and only if status === "completed".
+ *
+ * Feature: marketplace-integration, Property 6: Rating is gated by job completion status
+ * Validates: Requirements 5.4
+ */
+describe("Feature: marketplace-integration, Property 6: Rating is gated by job completion status", () => {
+  it("returns true only when status is 'completed'", () => {
+    expect(isRatingEnabled("completed")).toBe(true);
+  });
+
+  it("returns false for any status that is not 'completed'", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(
+          "open",
+          "pending",
+          "paid",
+          "in_progress",
+          "worker_completed",
+          "customer_completed",
+          "cancelled",
+          "disputed",
+          "draft"
+        ),
+        (status) => {
+          expect(isRatingEnabled(status)).toBe(false);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns false for any arbitrary string that is not 'completed'", () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 0, maxLength: 50 }).filter((s) => s !== "completed"),
+        (status) => {
+          expect(isRatingEnabled(status)).toBe(false);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns true if and only if status === 'completed'", () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          fc.constant("completed"),
+          fc.string({ minLength: 0, maxLength: 50 }).filter((s) => s !== "completed")
+        ),
+        (status) => {
+          const result = isRatingEnabled(status);
+          expect(result).toBe(status === "completed");
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});

@@ -10,6 +10,16 @@ import type { WorkerProfile } from "@/api/types/worker";
 import type { ServiceCategory } from "@/lib/constants/categories";
 import type { VerificationStatus, AvailabilityStatus } from "@/lib/constants/user-types";
 
+// Mock supabase client (required by authStore → HireDialog → ArtisanProfileContent)
+vi.mock("@/lib/supabaseClient", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+  },
+}));
+
 // Mock next/navigation
 const mockPush = vi.fn();
 const mockBack = vi.fn();
@@ -25,6 +35,7 @@ vi.mock("framer-motion", () => ({
   motion: {
     div: ({ children, ...props }: any) =>
       React.createElement("div", { "data-testid": props["data-testid"] }, children),
+    circle: (props: any) => React.createElement("circle", props),
   },
   AnimatePresence: ({ children }: any) => children,
 }));

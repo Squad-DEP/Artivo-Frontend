@@ -36,6 +36,7 @@ import type { Review } from "@/api/types/reputation";
 import { VERIFICATION_STATUS } from "@/lib/constants/user-types";
 import { HireMeButton } from "@/components/profile/HireMeButton";
 import { ProfileShareButton } from "@/components/profile/ProfileShareButton";
+import { HireDialog } from "@/components/marketplace/HireDialog";
 
 interface ArtisanProfileContentProps {
   worker: WorkerProfile;
@@ -221,6 +222,7 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
   const [selectedPortfolioItem, setSelectedPortfolioItem] = useState<PortfolioItem | null>(null);
   const [activeTab, setActiveTab] = useState<"about" | "portfolio" | "reviews">("about");
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [isHireDialogOpen, setIsHireDialogOpen] = useState(false);
 
   const verificationConfig = VERIFICATION_STATUS[worker.verification_status];
   const isVerified = worker.verification_status === "verified";
@@ -281,11 +283,18 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{worker.display_name}</h1>
                   </div>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    {isVerified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Verified
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      worker.verification_status === "verified"
+                        ? "bg-green-50 text-green-700"
+                        : worker.verification_status === "pending"
+                        ? "bg-yellow-50 text-yellow-700"
+                        : worker.verification_status === "rejected"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-gray-50 text-gray-600"
+                    }`}>
+                      {isVerified && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {verificationConfig.label}
+                    </span>
                     {worker.trust_score >= 90 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--orange)]/10 text-[var(--orange)] rounded-full text-xs font-medium">
                         <Award className="w-3.5 h-3.5" /> Top Rated
@@ -329,7 +338,7 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { icon: Star, value: worker.rating.toString(), label: "Rating", sub: `${worker.reviews_count} reviews` },
-                { icon: Briefcase, value: worker.completed_jobs.toString(), label: "Jobs Completed", sub: "98% success" },
+                { icon: Briefcase, value: worker.completed_jobs.toString(), label: "Jobs Completed", sub: `${worker.completion_rate ?? 0}% success` },
                 { icon: Award, value: `${yearsExperience}+`, label: "Experience", sub: "Years" },
                 { icon: Clock, value: `${worker.response_time_hours ?? 2}h`, label: "Avg. Response", sub: "Reply time" },
               ].map((stat, i) => (
@@ -360,9 +369,8 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
             </div>
 
             {/* Tab Content */}
-            <AnimatePresence mode="wait">
-              {activeTab === "about" && (
-                <motion.div key="about" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+            <div className={activeTab === "about" ? "" : "hidden"}>
+              <div className="space-y-6">
                   {/* About */}
                   <div className="bg-white rounded-2xl border border-gray-100 p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">About</h2>
@@ -446,11 +454,10 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
                       )}
                     </div>
                   )}
-                </motion.div>
-              )}
+              </div>
+            </div>
 
-              {activeTab === "portfolio" && (
-                <motion.div key="portfolio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div className={activeTab === "portfolio" ? "" : "hidden"}>
                   <div className="bg-white rounded-2xl border border-gray-100 p-6">
                     <div className="flex items-center justify-between mb-5">
                       <h2 className="text-lg font-bold text-gray-900">Portfolio</h2>
@@ -488,11 +495,9 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
                       <p className="text-gray-500 text-sm">No portfolio items yet.</p>
                     )}
                   </div>
-                </motion.div>
-              )}
+            </div>
 
-              {activeTab === "reviews" && (
-                <motion.div key="reviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+            <div className={activeTab === "reviews" ? "" : "hidden"}>
                   <div className="bg-white rounded-2xl border border-gray-100 p-6">
                     <div className="flex items-center gap-3 mb-6">
                       <h2 className="text-lg font-bold text-gray-900">Reviews</h2>
@@ -518,9 +523,7 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
                       <p className="text-gray-500 text-sm">No reviews yet.</p>
                     )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -552,7 +555,7 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
 
               {/* CTA Buttons */}
               <div className="space-y-3">
-                <HireMeButton workerUsername={worker.username ?? ""} workerName={worker.display_name.split(" ")[0]} workerUserId={worker.user_id} />
+                <HireMeButton workerUsername={worker.username ?? ""} workerName={worker.display_name.split(" ")[0]} workerUserId={worker.user_id} onHireClick={() => setIsHireDialogOpen(true)} />
                 <Button variant="outline" className="w-full h-11 rounded-xl border-gray-200" onClick={() => router.push("/register")}>
                   <Calendar className="w-4 h-4 mr-2" /> Schedule Consultation
                 </Button>
@@ -623,6 +626,15 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
           <PortfolioModal item={selectedPortfolioItem} onClose={() => setSelectedPortfolioItem(null)} />
         )}
       </AnimatePresence>
+
+      {/* Hire Dialog */}
+      <HireDialog
+        isOpen={isHireDialogOpen}
+        onClose={() => setIsHireDialogOpen(false)}
+        workerName={worker.display_name}
+        workerId={worker.user_id}
+        workerUsername={worker.username ?? ""}
+      />
     </div>
   );
 }

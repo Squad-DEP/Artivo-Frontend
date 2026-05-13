@@ -80,6 +80,8 @@ export interface WorkerProfile {
   hourly_rate?: number;
   minimum_budget?: number;
   completed_jobs: number;
+  /** Completion rate as a percentage (0-100), available from public profile endpoint */
+  completion_rate?: number;
   rating: number;
   reviews_count: number;
   availability: AvailabilityStatus;

@@ -118,6 +118,16 @@ export const JOB_STATUS = {
     color: "yellow",
     description: "Work is currently underway",
   },
+  worker_completed: {
+    label: "Worker Completed",
+    color: "yellow",
+    description: "Worker has confirmed completion, waiting for customer",
+  },
+  customer_completed: {
+    label: "Customer Completed",
+    color: "yellow",
+    description: "Customer has confirmed completion, waiting for worker",
+  },
   completed: {
     label: "Completed",
     color: "green",

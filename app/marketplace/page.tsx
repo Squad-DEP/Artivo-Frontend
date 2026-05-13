@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { ChevronRight, Loader2, Star, Search, Sparkles } from "lucide-react";
+import { ChevronRight, Loader2, Star, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/marketplace/SearchBar";
 import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
 import { WorkerCard } from "@/components/marketplace/WorkerCard";
 import { RecommendationSection } from "@/components/marketplace/RecommendationSection";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { useMarketplaceStore } from "@/store/marketplaceStore";
 
 const QUICK_PROMPTS = [
@@ -108,15 +109,13 @@ export default function MarketplacePage() {
 
           {/* Error State */}
           {error && (
-            <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-center mb-6">
-              <p className="text-sm text-red-600 mb-2">{error}</p>
-              <button
-                onClick={() => search(searchQuery)}
-                className="text-sm font-medium text-red-700 hover:text-red-800 underline"
-              >
-                Try again
-              </button>
-            </div>
+            <ErrorBanner
+              message="Failed to load artisans"
+              description={error}
+              onRetry={() => search(searchQuery)}
+              retryLabel="Try again"
+              className="mb-6"
+            />
           )}
 
           {/* Loading State */}

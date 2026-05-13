@@ -339,6 +339,174 @@ describe("onboardingStore", () => {
     });
   });
 
+  describe("submitVoice", () => {
+    it("should call POST /ai/onboard/voice with audioData and userType artisan, then map response to confirmationFields", async () => {
+      mockedApiService.post.mockResolvedValueOnce({
+        message: true,
+        data: {
+          fullName: "Adebayo Ogunlesi",
+          skills: ["Plumbing", "Electrical"],
+          bio: "Experienced plumber",
+          experience: "5 years",
+          avgPay: "15000",
+          location: "Lagos",
+        },
+      });
+
+      await useOnboardingStore.getState().submitVoice("base64AudioData");
+      const state = useOnboardingStore.getState();
+
+      expect(mockedApiService.post).toHaveBeenCalledWith("/ai/onboard/voice", {
+        body: { audioData: "base64AudioData", userType: "artisan" },
+      });
+
+      expect(state.confirmationFields).toEqual({
+        fullName: "Adebayo Ogunlesi",
+        skills: "Plumbing, Electrical",
+        bio: "Experienced plumber",
+        experience: "5 years",
+        avgPay: "15000",
+        location: "Lagos",
+      });
+      expect(state.isProcessing).toBe(false);
+      expect(state.error).toBeNull();
+    });
+
+    it("should set error state on voice endpoint failure", async () => {
+      mockedApiService.post.mockRejectedValueOnce(new Error("Voice processing failed"));
+
+      await useOnboardingStore.getState().submitVoice("base64AudioData");
+      const state = useOnboardingStore.getState();
+
+      expect(state.error).toBe("Voice processing failed");
+      expect(state.isProcessing).toBe(false);
+      expect(state.confirmationFields).toEqual({});
+    });
+  });
+
+  describe("submitText", () => {
+    it("should call POST /ai/onboard/text with text, userType, and context", async () => {
+      const context = [
+        { role: "user", content: "I am a plumber in Lagos" },
+      ];
+
+      mockedApiService.post.mockResolvedValueOnce({
+        message: true,
+        data: {
+          fullName: "Chidi Nwosu",
+          skills: ["Carpentry"],
+          bio: "Skilled carpenter",
+          experience: "3 years",
+          avgPay: "10000",
+          location: "Abuja",
+        },
+      });
+
+      await useOnboardingStore.getState().submitText("I do carpentry work in Abuja", context);
+      const state = useOnboardingStore.getState();
+
+      expect(mockedApiService.post).toHaveBeenCalledWith("/ai/onboard/text", {
+        body: {
+          text: "I do carpentry work in Abuja",
+          userType: "artisan",
+          context,
+        },
+      });
+
+      expect(state.confirmationFields).toEqual({
+        fullName: "Chidi Nwosu",
+        skills: "Carpentry",
+        bio: "Skilled carpenter",
+        experience: "3 years",
+        avgPay: "10000",
+        location: "Abuja",
+      });
+      expect(state.isProcessing).toBe(false);
+      expect(state.error).toBeNull();
+    });
+
+    it("should set error state on text endpoint failure", async () => {
+      mockedApiService.post.mockRejectedValueOnce(new Error("Text processing failed"));
+
+      await useOnboardingStore.getState().submitText("some text", []);
+      const state = useOnboardingStore.getState();
+
+      expect(state.error).toBe("Text processing failed");
+      expect(state.isProcessing).toBe(false);
+      expect(state.confirmationFields).toEqual({});
+    });
+  });
+
+  describe("correctField", () => {
+    it("should update confirmationFields locally without calling apiService.post", () => {
+      // Set up initial confirmation fields
+      useOnboardingStore.setState({
+        confirmationFields: {
+          fullName: "Old Name",
+          skills: "Plumbing",
+          bio: "Old bio",
+          experience: "2 years",
+          avgPay: "10000",
+          location: "Lagos",
+        },
+      });
+
+      vi.clearAllMocks();
+
+      useOnboardingStore.getState().correctField("fullName", "New Name");
+      const state = useOnboardingStore.getState();
+
+      expect(state.confirmationFields.fullName).toBe("New Name");
+      // Other fields remain unchanged
+      expect(state.confirmationFields.skills).toBe("Plumbing");
+      expect(state.confirmationFields.bio).toBe("Old bio");
+      // No API call should have been made
+      expect(mockedApiService.post).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("confirmAndSave", () => {
+    it("should call POST /user with confirmationFields and set saveSuccess on success", async () => {
+      const fields = {
+        fullName: "Adebayo Ogunlesi",
+        skills: "Plumbing, Electrical",
+        bio: "Experienced plumber",
+        experience: "5 years",
+        avgPay: "15000",
+        location: "Lagos",
+      };
+
+      useOnboardingStore.setState({ confirmationFields: fields });
+      mockedApiService.post.mockResolvedValueOnce({});
+
+      const result = await useOnboardingStore.getState().confirmAndSave();
+      const state = useOnboardingStore.getState();
+
+      expect(result).toBe(true);
+      expect(mockedApiService.post).toHaveBeenCalledWith("/user", {
+        body: fields,
+      });
+      expect(state.saveSuccess).toBe(true);
+      expect(state.isProcessing).toBe(false);
+      expect(state.error).toBeNull();
+    });
+
+    it("should set error and saveSuccess remains false on failure", async () => {
+      useOnboardingStore.setState({
+        confirmationFields: { fullName: "Test" },
+      });
+      mockedApiService.post.mockRejectedValueOnce(new Error("Failed to save profile"));
+
+      const result = await useOnboardingStore.getState().confirmAndSave();
+      const state = useOnboardingStore.getState();
+
+      expect(result).toBe(false);
+      expect(state.error).toBe("Failed to save profile");
+      expect(state.saveSuccess).toBe(false);
+      expect(state.isProcessing).toBe(false);
+    });
+  });
+
   describe("reset", () => {
     it("should reset all state to initial values", () => {
       useOnboardingStore.getState().initOnboarding("worker");
@@ -352,6 +520,26 @@ describe("onboardingStore", () => {
       expect(state.fallbackMode).toBe(false);
       expect(state.error).toBeNull();
       expect(state.role).toBe("worker");
+    });
+
+    it("should clear confirmationFields and saveSuccess", () => {
+      useOnboardingStore.setState({
+        confirmationFields: {
+          fullName: "Test User",
+          skills: "Plumbing",
+          bio: "A bio",
+          experience: "3 years",
+          avgPay: "20000",
+          location: "Abuja",
+        },
+        saveSuccess: true,
+      });
+
+      useOnboardingStore.getState().reset();
+      const state = useOnboardingStore.getState();
+
+      expect(state.confirmationFields).toEqual({});
+      expect(state.saveSuccess).toBe(false);
     });
   });
 

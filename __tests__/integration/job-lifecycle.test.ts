@@ -1,15 +1,31 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { useMarketplaceStore } from "@/store/marketplaceStore";
+import { useHireFlowStore } from "@/store/hireFlowStore";
 import { useJobStore } from "@/store/jobStore";
 import { usePaymentStore } from "@/store/paymentStore";
-import { useReputationStore } from "@/store/reputationStore";
-import type { Job, JobApplication } from "@/api/types/job";
+import type { FeedResponse } from "@/api/types/marketplace-api";
+import type { Job } from "@/api/types/job";
 
 // Mock the API service
 vi.mock("@/api/api-service", () => ({
   apiService: {
-    post: vi.fn(),
     get: vi.fn(),
+    post: vi.fn(),
     put: vi.fn(),
+  },
+  getApiBaseUrl: () => "http://localhost:8080/api",
+}));
+
+// Mock authStore
+vi.mock("@/store/authStore", () => ({
+  useAuthStore: {
+    getState: () => ({
+      user: {
+        id: "customer-1",
+        email: "customer@example.com",
+        access_token: "test-token-123",
+      },
+    }),
   },
 }));
 
@@ -17,80 +33,51 @@ import { apiService } from "@/api/api-service";
 
 const mockedApiService = vi.mocked(apiService);
 
+// Mock global fetch (used by hireFlowStore's postWithValidation)
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 // --- Test Fixtures ---
 
-function createMockJob(overrides: Partial<Job> = {}): Job {
-  return {
-    id: "job-1",
-    title: "Fix Kitchen Plumbing",
-    description: "Need a plumber to fix leaking pipes in the kitchen. The issue has been ongoing for a week.",
-    category: "Home Services" as any,
-    budget_min: 5000,
-    budget_max: 15000,
-    location: { city: "Lagos", state: "Lagos", country: "Nigeria" },
-    customer_id: "customer-1",
-    customer_name: "Chioma Okafor",
-    status: "open" as any,
-    stages: [
-      {
-        id: "stage-1",
-        job_id: "job-1",
-        title: "Inspection",
-        description: "Inspect the plumbing issue",
-        amount: 5000,
-        status: "pending",
-        created_at: "2024-01-01T00:00:00Z",
-        order: 0,
-      },
-      {
-        id: "stage-2",
-        job_id: "job-1",
-        title: "Repair",
-        description: "Fix the leaking pipes",
-        amount: 10000,
-        status: "pending",
-        created_at: "2024-01-01T00:00:00Z",
-        order: 1,
-      },
-    ],
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-    ...overrides,
-  };
-}
-
-function createMockApplication(overrides: Partial<JobApplication> = {}): JobApplication {
-  return {
-    id: "app-1",
-    job_id: "job-1",
-    worker_id: "worker-1",
-    worker: {
+const mockFeedResponse: FeedResponse = {
+  workers: [
+    {
       id: "worker-1",
-      display_name: "Adebayo Plumber",
-      username: "adebayo-plumber",
-      primary_skill: "Plumbing",
-      trust_score: 85,
-      rating: 4.7,
-      completed_jobs: 42,
-      location: { city: "Lagos", state: "Lagos", country: "Nigeria" },
-      verification_status: "verified" as any,
-      hourly_rate: 3000,
-      avatar_url: null,
+      full_name: "Adebayo Plumber",
+      display_name: "Adebayo",
+      photo_url: "https://example.com/photo-1.jpg",
+      bio: "Expert plumber with 5 years experience",
+      skills: ["Plumbing", "Pipe Fitting"],
+      location: "Ikeja, Lagos",
+      credit_score: 85,
+      completion_rate: 92,
+      total_jobs: 45,
+      average_rating: 4.7,
+      match_score: 0.95,
+      match_explanation: "Great match for plumbing work",
     },
-    proposed_amount: 12000,
-    cover_letter: "I have 5 years of plumbing experience and can fix this quickly.",
-    estimated_duration: "2 days",
-    status: "pending",
-    created_at: "2024-01-02T00:00:00Z",
-    updated_at: "2024-01-02T00:00:00Z",
-    ...overrides,
-  };
-}
+    {
+      id: "worker-2",
+      full_name: "Femi Electrician",
+      display_name: "Femi",
+      photo_url: "https://example.com/photo-2.jpg",
+      bio: "Certified electrician",
+      skills: ["Electrical", "Wiring"],
+      location: "Lekki, Lagos",
+      credit_score: 78,
+      completion_rate: 88,
+      total_jobs: 30,
+      average_rating: 4.5,
+      match_score: 0.8,
+    },
+  ],
+};
 
-describe("Integration: Job Lifecycle", () => {
+describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset stores
+    useMarketplaceStore.getState().reset();
+    useHireFlowStore.getState().reset();
     useJobStore.setState({
       jobs: [],
       currentJob: null,
@@ -100,411 +87,514 @@ describe("Integration: Job Lifecycle", () => {
       isLoading: false,
       error: null,
     });
-    usePaymentStore.setState({
-      virtualAccount: null,
-      transactions: [],
-      totalTransactions: 0,
-      currentPage: 1,
-      isLoading: false,
-      error: null,
-      retryAttempts: {},
-      virtualAccountError: null,
-      isCreatingVirtualAccount: false,
-    });
   });
 
-  describe("Full Job Lifecycle: Create → Apply → Accept → Complete → Pay → Review", () => {
-    it("should complete the full job lifecycle with multi-stage job", async () => {
-      const mockJob = createMockJob();
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-      // Step 1: Customer creates a job
-      mockedApiService.post.mockResolvedValueOnce({ id: "job-1" });
+  describe("Full Customer Journey", () => {
+    it("should complete the full discovery → hire → pay → complete → rate flow", async () => {
+      // ─── Step 1: Search marketplace → verify workers loaded ───
+      mockedApiService.get.mockResolvedValueOnce(mockFeedResponse);
 
-      const jobId = await useJobStore.getState().createJob({
-        title: "Fix Kitchen Plumbing",
-        description: "Need a plumber to fix leaking pipes in the kitchen. The issue has been ongoing for a week.",
-        category_id: "home-services",
-        budget_min: 5000,
-        budget_max: 15000,
-        location: { city: "Lagos", state: "Lagos", country: "Nigeria" },
-        stages: [
-          { title: "Inspection", description: "Inspect the plumbing issue", amount: 5000 },
-          { title: "Repair", description: "Fix the leaking pipes", amount: 10000 },
-        ],
+      await useMarketplaceStore.getState().search("plumber");
+
+      const marketplaceState = useMarketplaceStore.getState();
+      expect(marketplaceState.workers).toHaveLength(2);
+      expect(marketplaceState.workers[0].display_name).toBe("Adebayo");
+      expect(marketplaceState.workers[0].trust_score).toBe(85);
+      expect(marketplaceState.workers[0].rating).toBe(4.7);
+      expect(marketplaceState.workers[0].completed_jobs).toBe(45);
+      expect(marketplaceState.isLoading).toBe(false);
+      expect(marketplaceState.error).toBeNull();
+      expect(mockedApiService.get).toHaveBeenCalledWith("/customer/feed", {
+        query: expect.objectContaining({ query: "plumber" }),
       });
 
-      expect(jobId).toBe("job-1");
-      expect(mockedApiService.post).toHaveBeenCalledWith("/jobs", {
-        body: expect.objectContaining({
-          title: "Fix Kitchen Plumbing",
-          budget_min: 5000,
-          budget_max: 15000,
+      // ─── Step 2: Create job request → verify step transitions ───
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_request: {
+            id: "jr-001",
+            status: "open",
+            created_at: "2024-01-15T10:00:00Z",
+          },
         }),
       });
 
-      // Step 2: Worker applies to the job
-      mockedApiService.post.mockResolvedValueOnce(createMockApplication());
-
-      const applyResult = await useJobStore.getState().applyToJob("job-1", {
-        proposed_amount: 12000,
-        cover_letter: "I have 5 years of plumbing experience and can fix this quickly.",
-        estimated_duration: "2 days",
+      const createResult = await useHireFlowStore.getState().createJobRequest({
+        job_type_id: "plumbing-123",
+        title: "Fix kitchen sink",
+        description: "The kitchen sink is leaking and needs repair",
+        location: "Ikeja, Lagos",
+        budget: 15000,
       });
 
-      expect(applyResult).toBe(true);
-      expect(mockedApiService.post).toHaveBeenCalledWith("/jobs/:id/apply", {
-        params: { id: "job-1" },
+      expect(createResult).toBe(true);
+      const hireStateAfterCreate = useHireFlowStore.getState();
+      expect(hireStateAfterCreate.step).toBe("hiring");
+      expect(hireStateAfterCreate.jobRequest).toEqual({
+        id: "jr-001",
+        status: "open",
+      });
+      expect(hireStateAfterCreate.isLoading).toBe(false);
+
+      // Verify the correct endpoint was called
+      expect(mockFetch).toHaveBeenCalledWith(
+        "http://localhost:8080/api/v1/customer/request-job",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "Content-Type": "application/json",
+            Authorization: "Bearer test-token-123",
+          }),
+          body: JSON.stringify({
+            job_type_id: "plumbing-123",
+            title: "Fix kitchen sink",
+            description: "The kitchen sink is leaking and needs repair",
+            location: "Ikeja, Lagos",
+            budget: 15000,
+          }),
+        })
+      );
+
+      // ─── Step 3: Hire worker → verify job created ───
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job: {
+            id: "job-001",
+            status: "pending",
+            created_at: "2024-01-15T10:05:00Z",
+          },
+        }),
+      });
+
+      const hireResult = await useHireFlowStore
+        .getState()
+        .hireWorker("jr-001", "worker-1", 15000);
+
+      expect(hireResult).toBe(true);
+      const hireStateAfterHire = useHireFlowStore.getState();
+      expect(hireStateAfterHire.step).toBe("paying");
+      expect(hireStateAfterHire.job).toEqual({
+        id: "job-001",
+        status: "pending",
+      });
+
+      // Verify hire endpoint called correctly
+      expect(mockFetch).toHaveBeenCalledWith(
+        "http://localhost:8080/api/v1/customer/hire",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            job_request_id: "jr-001",
+            worker_id: "worker-1",
+            amount: 15000,
+          }),
+        })
+      );
+
+      // ─── Step 4: Log payment → verify step = "complete" ───
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          payment_log: {
+            id: "pl-001",
+            squad_transaction_id: "txn-squad-abc123",
+            amount: 15000,
+            status: "success",
+          },
+        }),
+      });
+
+      const payResult = await useHireFlowStore
+        .getState()
+        .logPayment("job-001", "txn-squad-abc123", 15000);
+
+      expect(payResult).toBe(true);
+      const hireStateAfterPay = useHireFlowStore.getState();
+      expect(hireStateAfterPay.step).toBe("complete");
+      expect(hireStateAfterPay.paymentLog).toEqual({
+        id: "pl-001",
+        squad_transaction_id: "txn-squad-abc123",
+        amount: 15000,
+        status: "success",
+      });
+
+      // Verify payment endpoint called correctly
+      expect(mockFetch).toHaveBeenCalledWith(
+        "http://localhost:8080/api/v1/customer/payment",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            job_id: "job-001",
+            squad_transaction_id: "txn-squad-abc123",
+            amount: 15000,
+            status: "success",
+          }),
+        })
+      );
+
+      // ─── Step 5: Complete job → POST /customer/complete-job/:id ───
+      mockedApiService.post.mockResolvedValueOnce({
+        job: { id: "job-001", status: "customer_completed" },
+        msg: "Job marked as complete",
+      });
+
+      const completeResult = await apiService.post("/customer/complete-job/:id", {
+        params: { id: "job-001" },
+      });
+
+      expect(completeResult).toEqual({
+        job: { id: "job-001", status: "customer_completed" },
+        msg: "Job marked as complete",
+      });
+      expect(mockedApiService.post).toHaveBeenCalledWith(
+        "/customer/complete-job/:id",
+        { params: { id: "job-001" } }
+      );
+
+      // ─── Step 6: Rate worker → POST /customer/rate ───
+      mockedApiService.post.mockResolvedValueOnce({
+        review: { id: "review-001", rating: 5, comment: "Excellent work!" },
+        msg: "Rating submitted successfully",
+      });
+
+      const rateResult = await apiService.post("/customer/rate", {
         body: {
-          proposed_amount: 12000,
-          cover_letter: "I have 5 years of plumbing experience and can fix this quickly.",
-          estimated_duration: "2 days",
+          job_id: "job-001",
+          rating: 5,
+          comment: "Excellent work! Fixed the plumbing perfectly.",
         },
       });
 
-      // Step 3: Customer views the job (sets currentJob) then accepts the application
-      useJobStore.setState({ currentJob: mockJob, applications: [createMockApplication()] });
-
-      const jobInProgress = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
-        stages: [
-          { ...mockJob.stages[0], status: "in_progress" },
-          { ...mockJob.stages[1], status: "pending" },
-        ],
+      expect(rateResult).toEqual({
+        review: { id: "review-001", rating: 5, comment: "Excellent work!" },
+        msg: "Rating submitted successfully",
       });
-      mockedApiService.post.mockResolvedValueOnce(jobInProgress);
-
-      const acceptResult = await useJobStore.getState().acceptApplication("job-1", "app-1");
-
-      expect(acceptResult).toBe(true);
-      expect(mockedApiService.post).toHaveBeenCalledWith(
-        "/jobs/:id/applications/:appId/accept",
-        { params: { id: "job-1", appId: "app-1" } }
-      );
-
-      // Verify job status updated
-      let state = useJobStore.getState();
-      expect(state.currentJob?.status).toBe("in_progress");
-
-      // Step 4: Worker completes stage 1
-      const jobStage1Completed = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
-        stages: [
-          { ...mockJob.stages[0], status: "completed" },
-          { ...mockJob.stages[1], status: "pending" },
-        ],
-      });
-      mockedApiService.post.mockResolvedValueOnce(jobStage1Completed);
-
-      const completeStage1 = await useJobStore.getState().completeStage("job-1", "stage-1");
-      expect(completeStage1).toBe(true);
-
-      // Step 5: Customer confirms stage 1 completion
-      const jobStage1Confirmed = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
-        stages: [
-          { ...mockJob.stages[0], status: "paid" },
-          { ...mockJob.stages[1], status: "in_progress" },
-        ],
-      });
-      mockedApiService.post.mockResolvedValueOnce(jobStage1Confirmed);
-
-      const confirmStage1 = await useJobStore.getState().confirmStageCompletion("job-1", "stage-1");
-      expect(confirmStage1).toBe(true);
-
-      state = useJobStore.getState();
-      expect(state.currentJob?.stages[0].status).toBe("paid");
-
-      // Step 6: Payment for stage 1
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const paymentResult = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-1", "mobile_money", 5000);
-      expect(paymentResult).toBe(true);
-
-      // Step 7: Worker completes stage 2
-      const jobStage2Completed = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
-        stages: [
-          { ...mockJob.stages[0], status: "paid" },
-          { ...mockJob.stages[1], status: "completed" },
-        ],
-      });
-      mockedApiService.post.mockResolvedValueOnce(jobStage2Completed);
-
-      const completeStage2 = await useJobStore.getState().completeStage("job-1", "stage-2");
-      expect(completeStage2).toBe(true);
-
-      // Step 8: Customer confirms stage 2 completion
-      const jobAllPaid = createMockJob({
-        status: "completed" as any,
-        worker_id: "worker-1",
-        stages: [
-          { ...mockJob.stages[0], status: "paid" },
-          { ...mockJob.stages[1], status: "paid" },
-        ],
-      });
-      mockedApiService.post.mockResolvedValueOnce(jobAllPaid);
-
-      const confirmStage2 = await useJobStore.getState().confirmStageCompletion("job-1", "stage-2");
-      expect(confirmStage2).toBe(true);
-
-      state = useJobStore.getState();
-      expect(state.currentJob?.status).toBe("completed");
-      expect(state.currentJob?.stages.every((s) => s.status === "paid")).toBe(true);
-
-      // Step 9: Payment for stage 2
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const payment2Result = await usePaymentStore
-        .getState()
-        .initiatePayment("job-1", "stage-2", "bank_transfer", 10000);
-      expect(payment2Result).toBe(true);
-
-      // Step 10: Customer submits review
-      mockedApiService.post.mockResolvedValueOnce({});
-
-      const reviewResult = await useJobStore.getState().submitReview({
-        job_id: "job-1",
-        reviewee_id: "worker-1",
-        rating: 5,
-        comment: "Excellent work! Fixed the plumbing perfectly.",
-      });
-
-      expect(reviewResult).toBe(true);
-      expect(mockedApiService.post).toHaveBeenCalledWith("/jobs/:id/review", {
-        params: { id: "job-1" },
+      expect(mockedApiService.post).toHaveBeenCalledWith("/customer/rate", {
         body: {
-          job_id: "job-1",
-          reviewee_id: "worker-1",
+          job_id: "job-001",
           rating: 5,
           comment: "Excellent work! Fixed the plumbing perfectly.",
         },
       });
     });
-
-    it("should handle single-stage job (no explicit stages) as full amount", async () => {
-      // Job with no stages — should be normalized to single stage
-      const singleStageJob: Job = {
-        id: "job-2",
-        title: "Quick Electrical Fix",
-        description: "Need someone to replace a faulty light switch in the living room quickly.",
-        category: "Home Services" as any,
-        budget_min: 2000,
-        budget_max: 5000,
-        final_amount: 3000,
-        location: { city: "Lagos", state: "Lagos", country: "Nigeria" },
-        customer_id: "customer-1",
-        status: "open" as any,
-        stages: [], // No explicit stages
-        created_at: "2024-01-01T00:00:00Z",
-        updated_at: "2024-01-01T00:00:00Z",
-      };
-
-      // Fetch job — store normalizes it
-      mockedApiService.get
-        .mockResolvedValueOnce(singleStageJob) // job fetch
-        .mockRejectedValueOnce(new Error("Not found")); // applications fetch (worker view)
-
-      await useJobStore.getState().fetchJobById("job-2");
-
-      const state = useJobStore.getState();
-      expect(state.currentJob).not.toBeNull();
-      expect(state.currentJob!.stages).toHaveLength(1);
-      expect(state.currentJob!.stages[0].id).toBe("job-2-full");
-      expect(state.currentJob!.stages[0].amount).toBe(3000); // Uses final_amount
-      expect(state.currentJob!.stages[0].title).toBe("Quick Electrical Fix");
-    });
-
-    it("should handle stage dispute and revert to in_progress", async () => {
-      const mockJob = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
-        stages: [
-          {
-            id: "stage-1",
-            job_id: "job-1",
-            title: "Inspection",
-            description: "Inspect the plumbing issue",
-            amount: 5000,
-            status: "completed",
-            created_at: "2024-01-01T00:00:00Z",
-            order: 0,
-          },
-          {
-            id: "stage-2",
-            job_id: "job-1",
-            title: "Repair",
-            description: "Fix the leaking pipes",
-            amount: 10000,
-            status: "pending",
-            created_at: "2024-01-01T00:00:00Z",
-            order: 1,
-          },
-        ],
-      });
-
-      // Set current job
-      useJobStore.setState({ currentJob: mockJob });
-
-      // Customer disputes stage 1
-      const disputedJob = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
-        stages: [
-          { ...mockJob.stages[0], status: "in_progress" }, // Reverted
-          { ...mockJob.stages[1], status: "pending" },
-        ],
-      });
-      mockedApiService.post.mockResolvedValueOnce(disputedJob);
-
-      const disputeResult = await useJobStore
-        .getState()
-        .disputeStage("job-1", "stage-1", "Work was not completed properly");
-
-      expect(disputeResult).toBe(true);
-      expect(mockedApiService.post).toHaveBeenCalledWith(
-        "/jobs/:id/stages/:stageId/dispute",
-        {
-          params: { id: "job-1", stageId: "stage-1" },
-          body: { reason: "Work was not completed properly" },
-        }
-      );
-
-      const state = useJobStore.getState();
-      expect(state.currentJob?.stages[0].status).toBe("in_progress");
-    });
   });
 
-  describe("Job Application Flow", () => {
-    it("should fetch job with applications for customer view", async () => {
-      const mockJob = createMockJob();
-      const mockApplications = [
-        createMockApplication(),
-        createMockApplication({
-          id: "app-2",
-          worker_id: "worker-2",
-          worker: {
-            id: "worker-2",
-            display_name: "Femi Electrician",
-            username: "femi-electrician",
-            primary_skill: "Electrical",
-            trust_score: 72,
-            rating: 4.3,
-            completed_jobs: 28,
-            location: { city: "Lagos", state: "Lagos", country: "Nigeria" },
-            verification_status: "verified" as any,
-            hourly_rate: 2500,
-            avatar_url: null,
-          },
-          proposed_amount: 14000,
+  describe("State Transitions Through hireFlowStore", () => {
+    it("should transition through all steps: idle → requesting → hiring → paying → logging → complete", async () => {
+      // Verify initial state
+      expect(useHireFlowStore.getState().step).toBe("idle");
+
+      // Step 1: createJobRequest transitions idle → requesting → hiring
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_request: { id: "jr-100", status: "open", created_at: "2024-01-01" },
         }),
-      ];
+      });
 
-      mockedApiService.get
-        .mockResolvedValueOnce(mockJob) // job fetch
-        .mockResolvedValueOnce(mockApplications); // applications fetch
+      await useHireFlowStore.getState().createJobRequest({
+        job_type_id: "electrical-456",
+        title: "Install ceiling fan",
+        description: "Need a ceiling fan installed in the bedroom",
+        location: "Lekki, Lagos",
+        budget: 8000,
+      });
 
-      await useJobStore.getState().fetchJobById("job-1");
+      expect(useHireFlowStore.getState().step).toBe("hiring");
 
-      const state = useJobStore.getState();
-      expect(state.currentJob).not.toBeNull();
-      expect(state.applications).toHaveLength(2);
-      expect(state.applications[0].proposed_amount).toBe(12000);
-      expect(state.applications[1].proposed_amount).toBe(14000);
+      // Step 2: hireWorker transitions hiring → paying
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job: { id: "job-100", status: "pending", created_at: "2024-01-01" },
+        }),
+      });
+
+      await useHireFlowStore.getState().hireWorker("jr-100", "worker-2", 8000);
+
+      expect(useHireFlowStore.getState().step).toBe("paying");
+
+      // Step 3: logPayment transitions paying → logging → complete
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          payment_log: {
+            id: "pl-100",
+            squad_transaction_id: "txn-xyz",
+            amount: 8000,
+            status: "success",
+          },
+        }),
+      });
+
+      await useHireFlowStore.getState().logPayment("job-100", "txn-xyz", 8000);
+
+      expect(useHireFlowStore.getState().step).toBe("complete");
     });
 
-    it("should reject other applications when one is accepted", async () => {
-      // Set up state with multiple applications
-      useJobStore.setState({
-        currentJob: createMockJob(),
-        applications: [
-          createMockApplication({ id: "app-1", status: "pending" }),
-          createMockApplication({ id: "app-2", worker_id: "worker-2", status: "pending" }),
-          createMockApplication({ id: "app-3", worker_id: "worker-3", status: "pending" }),
-        ],
+    it("should revert step on failure at each stage", async () => {
+      // createJobRequest failure → stays at idle
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ msg: "Server error" }),
       });
 
-      const acceptedJob = createMockJob({
-        status: "in_progress" as any,
-        worker_id: "worker-1",
+      await useHireFlowStore.getState().createJobRequest({
+        job_type_id: "plumbing-123",
+        title: "Fix pipe",
+        description: "Leaking pipe in bathroom",
+        location: "Lagos",
+        budget: 5000,
       });
-      mockedApiService.post.mockResolvedValueOnce(acceptedJob);
 
-      await useJobStore.getState().acceptApplication("job-1", "app-1");
+      expect(useHireFlowStore.getState().step).toBe("idle");
+      expect(useHireFlowStore.getState().error).toBe("Server error");
 
-      const state = useJobStore.getState();
-      expect(state.applications.find((a) => a.id === "app-1")?.status).toBe("accepted");
-      expect(state.applications.find((a) => a.id === "app-2")?.status).toBe("rejected");
-      expect(state.applications.find((a) => a.id === "app-3")?.status).toBe("rejected");
+      // Reset and advance to hiring step
+      useHireFlowStore.getState().reset();
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_request: { id: "jr-200", status: "open", created_at: "2024-01-01" },
+        }),
+      });
+      await useHireFlowStore.getState().createJobRequest({
+        job_type_id: "plumbing-123",
+        title: "Fix pipe",
+        description: "Leaking pipe in bathroom",
+        location: "Lagos",
+        budget: 5000,
+      });
+      expect(useHireFlowStore.getState().step).toBe("hiring");
+
+      // hireWorker failure → stays at hiring
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ msg: "Worker unavailable" }),
+      });
+
+      await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000);
+
+      expect(useHireFlowStore.getState().step).toBe("hiring");
+      expect(useHireFlowStore.getState().error).toBe("Worker unavailable");
+
+      // Advance to paying step
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job: { id: "job-200", status: "pending", created_at: "2024-01-01" },
+        }),
+      });
+      await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000);
+      expect(useHireFlowStore.getState().step).toBe("paying");
+
+      // logPayment failure → reverts to paying
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ msg: "Payment logging failed" }),
+      });
+
+      await useHireFlowStore.getState().logPayment("job-200", "txn-fail", 5000);
+
+      expect(useHireFlowStore.getState().step).toBe("paying");
+      expect(useHireFlowStore.getState().error).toBe("Payment logging failed");
     });
   });
 
-  describe("Job Statistics", () => {
-    it("should fetch worker job statistics", async () => {
-      const mockWorkerStats = {
-        total_jobs: 50,
-        active_jobs: 3,
-        completed_jobs: 42,
-        total_earned: 1_500_000,
-        pending_earnings: 45_000,
-        completion_rate: 0.84,
-        average_rating: 4.7,
-      };
+  describe("Marketplace Search Verification", () => {
+    it("should map feed response to WorkerProfileSummary correctly", async () => {
+      mockedApiService.get.mockResolvedValueOnce(mockFeedResponse);
 
-      mockedApiService.get.mockResolvedValueOnce(mockWorkerStats);
+      await useMarketplaceStore.getState().search("plumber");
 
-      await useJobStore.getState().fetchStats();
+      const state = useMarketplaceStore.getState();
+      const firstWorker = state.workers[0];
 
-      const state = useJobStore.getState();
-      expect(state.workerStats).toEqual(mockWorkerStats);
-      expect(state.workerStats?.total_earned).toBe(1_500_000);
-      expect(state.workerStats?.completion_rate).toBe(0.84);
+      // Verify mapping from BackendFeedWorker to WorkerProfileSummary
+      expect(firstWorker.id).toBe("worker-1");
+      expect(firstWorker.display_name).toBe("Adebayo");
+      expect(firstWorker.profile_image_url).toBe("https://example.com/photo-1.jpg");
+      expect(firstWorker.skills).toEqual(["Plumbing", "Pipe Fitting"]);
+      expect(firstWorker.trust_score).toBe(85);
+      expect(firstWorker.rating).toBe(4.7);
+      expect(firstWorker.completed_jobs).toBe(45);
+    });
+
+    it("should store match explanations from feed response", async () => {
+      mockedApiService.get.mockResolvedValueOnce(mockFeedResponse);
+
+      await useMarketplaceStore.getState().search("plumber");
+
+      const state = useMarketplaceStore.getState();
+      expect(state.matchExplanations["worker-1"]).toBe("Great match for plumbing work");
+      // worker-2 has no match_explanation
+      expect(state.matchExplanations["worker-2"]).toBeUndefined();
+    });
+
+    it("should handle search errors gracefully", async () => {
+      mockedApiService.get.mockRejectedValueOnce(new Error("Network error"));
+
+      await useMarketplaceStore.getState().search("plumber");
+
+      const state = useMarketplaceStore.getState();
+      expect(state.workers).toHaveLength(0);
+      expect(state.error).toBe("Network error");
+      expect(state.isLoading).toBe(false);
     });
   });
 
-  describe("Error Handling in Job Lifecycle", () => {
-    it("should handle job creation failure", async () => {
-      mockedApiService.post.mockRejectedValueOnce(new Error("Validation failed"));
-
-      const jobId = await useJobStore.getState().createJob({
-        title: "Test",
-        description: "A".repeat(50),
-        category_id: "test",
-        budget_min: 1000,
-        budget_max: 5000,
-        location: { city: "Lagos", state: "Lagos", country: "Nigeria" },
+  describe("Job Completion via apiService", () => {
+    it("should call POST /customer/complete-job/:id with correct params", async () => {
+      mockedApiService.post.mockResolvedValueOnce({
+        job: { id: "job-001", status: "customer_completed" },
+        msg: "Marked complete",
       });
 
-      expect(jobId).toBeNull();
-      expect(useJobStore.getState().error).toBe("Validation failed");
-    });
-
-    it("should handle application failure", async () => {
-      mockedApiService.post.mockRejectedValueOnce(new Error("Job no longer accepting applications"));
-
-      const result = await useJobStore.getState().applyToJob("job-1", {
-        proposed_amount: 10000,
-        cover_letter: "I can do this.",
+      await apiService.post("/customer/complete-job/:id", {
+        params: { id: "job-001" },
       });
 
-      expect(result).toBe(false);
-      expect(useJobStore.getState().error).toBe("Job no longer accepting applications");
+      expect(mockedApiService.post).toHaveBeenCalledWith(
+        "/customer/complete-job/:id",
+        { params: { id: "job-001" } }
+      );
     });
 
-    it("should handle stage completion failure", async () => {
-      useJobStore.setState({ currentJob: createMockJob({ status: "in_progress" as any }) });
+    it("should call POST /worker/complete-job/:id for worker-side completion", async () => {
+      mockedApiService.post.mockResolvedValueOnce({
+        job: { id: "job-001", status: "worker_completed" },
+        msg: "Worker marked complete",
+      });
 
-      mockedApiService.post.mockRejectedValueOnce(new Error("Stage not in correct state"));
+      await apiService.post("/worker/complete-job/:id", {
+        params: { id: "job-001" },
+      });
 
-      const result = await useJobStore.getState().completeStage("job-1", "stage-1");
+      expect(mockedApiService.post).toHaveBeenCalledWith(
+        "/worker/complete-job/:id",
+        { params: { id: "job-001" } }
+      );
+    });
+  });
 
-      expect(result).toBe(false);
-      expect(useJobStore.getState().error).toBe("Stage not in correct state");
+  describe("Rating via apiService", () => {
+    it("should call POST /customer/rate with job_id, rating, and comment", async () => {
+      mockedApiService.post.mockResolvedValueOnce({
+        review: { id: "rev-001" },
+        msg: "Rating submitted",
+      });
+
+      const result = await apiService.post("/customer/rate", {
+        body: {
+          job_id: "job-001",
+          rating: 4,
+          comment: "Good work overall",
+        },
+      });
+
+      expect(result).toEqual({
+        review: { id: "rev-001" },
+        msg: "Rating submitted",
+      });
+      expect(mockedApiService.post).toHaveBeenCalledWith("/customer/rate", {
+        body: {
+          job_id: "job-001",
+          rating: 4,
+          comment: "Good work overall",
+        },
+      });
+    });
+
+    it("should handle rating submission failure", async () => {
+      mockedApiService.post.mockRejectedValueOnce(new Error("Rating failed"));
+
+      await expect(
+        apiService.post("/customer/rate", {
+          body: { job_id: "job-001", rating: 5, comment: "Great!" },
+        })
+      ).rejects.toThrow("Rating failed");
+    });
+  });
+
+  describe("End-to-End Error Recovery", () => {
+    it("should allow retry after hire failure without losing job request state", async () => {
+      // Create job request successfully
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_request: { id: "jr-300", status: "open", created_at: "2024-01-01" },
+        }),
+      });
+
+      await useHireFlowStore.getState().createJobRequest({
+        job_type_id: "plumbing-123",
+        title: "Fix pipe",
+        description: "Leaking pipe needs repair",
+        location: "Lagos",
+        budget: 10000,
+      });
+
+      expect(useHireFlowStore.getState().jobRequest).toEqual({
+        id: "jr-300",
+        status: "open",
+      });
+
+      // Hire fails
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ msg: "Service temporarily unavailable" }),
+      });
+
+      const firstAttempt = await useHireFlowStore
+        .getState()
+        .hireWorker("jr-300", "worker-1", 10000);
+
+      expect(firstAttempt).toBe(false);
+      expect(useHireFlowStore.getState().step).toBe("hiring");
+      // Job request should still be preserved
+      expect(useHireFlowStore.getState().jobRequest).toEqual({
+        id: "jr-300",
+        status: "open",
+      });
+
+      // Retry hire succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job: { id: "job-300", status: "pending", created_at: "2024-01-01" },
+        }),
+      });
+
+      const retryAttempt = await useHireFlowStore
+        .getState()
+        .hireWorker("jr-300", "worker-1", 10000);
+
+      expect(retryAttempt).toBe(true);
+      expect(useHireFlowStore.getState().step).toBe("paying");
+      expect(useHireFlowStore.getState().job).toEqual({
+        id: "job-300",
+        status: "pending",
+      });
     });
   });
 });

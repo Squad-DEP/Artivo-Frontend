@@ -357,14 +357,28 @@ describe("Integration: Payment Flow", () => {
     });
 
     it("should handle payment flow with virtual account fetch and payment", async () => {
-      // Step 1: Fetch virtual account
-      const mockAccount = createMockVirtualAccount();
-      mockedApiService.get.mockResolvedValueOnce(mockAccount);
+      // Step 1: Fetch virtual account (mock returns VirtualAccountResponse format)
+      mockedApiService.get.mockResolvedValueOnce({
+        virtual_account: {
+          virtual_account_number: "0123456789",
+          virtual_account_name: "Adebayo Plumber",
+          bank_name: "Squad Microfinance Bank",
+          bank_code: "000017",
+        },
+      });
 
       await usePaymentStore.getState().fetchVirtualAccount();
 
       let state = usePaymentStore.getState();
-      expect(state.virtualAccount).toEqual(mockAccount);
+      expect(state.virtualAccount).toEqual(
+        expect.objectContaining({
+          account_number: "0123456789",
+          account_name: "Adebayo Plumber",
+          bank_name: "Squad Microfinance Bank",
+          bank_code: "000017",
+          status: "active",
+        })
+      );
       expect(state.virtualAccount?.status).toBe("active");
 
       // Step 2: Initiate payment

@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiService } from "@/api/api-service";
 import type { CreateWorkerProfileRequest } from "@/api/types/worker";
+import type {
+  VoiceOnboardPayload,
+  VoiceOnboardResponse,
+  TextOnboardPayload,
+} from "@/api/types/marketplace-api";
 
 // --- Interfaces ---
 
@@ -39,6 +44,16 @@ interface ResumeResponse {
   role: "worker" | "customer";
 }
 
+/** Fields parsed from AI voice/text onboarding */
+export interface ConfirmationFields {
+  fullName: string;
+  skills: string;
+  bio: string;
+  experience: string;
+  avgPay: string;
+  location: string;
+}
+
 export interface OnboardingState {
   // State
   currentStep: number;
@@ -50,10 +65,16 @@ export interface OnboardingState {
   role: "worker" | "customer";
   partialProfile: Partial<CreateWorkerProfileRequest> | null;
   fallbackMode: boolean;
+  confirmationFields: Record<string, string>;
+  saveSuccess: boolean;
 
   // Actions
   initOnboarding: (role: "worker" | "customer") => void;
   submitResponse: (text: string) => Promise<void>;
+  submitVoice: (audioData: string) => Promise<void>;
+  submitText: (text: string, context: Array<{ role: string; content: string }>) => Promise<void>;
+  correctField: (fieldName: string, value: string) => void;
+  confirmAndSave: () => Promise<boolean>;
   confirmExtraction: (stepId: string, data: unknown) => Promise<void>;
   editExtraction: (stepId: string, data: unknown) => void;
   activateFallback: () => void;
@@ -155,8 +176,18 @@ export const useOnboardingStore = create<OnboardingState>()(
       role: "worker",
       partialProfile: null,
       fallbackMode: false,
+      confirmationFields: {},
+      saveSuccess: false,
 
       initOnboarding: (role: "worker" | "customer") => {
+        const { confirmationFields } = get();
+
+        // If we already have confirmation fields (user came back), just set the role
+        if (Object.keys(confirmationFields).length > 0) {
+          set({ role });
+          return;
+        }
+
         const stepTemplates = role === "worker" ? WORKER_STEPS : CUSTOMER_STEPS;
         const steps: OnboardingStep[] = stepTemplates.map((s) => ({
           ...s,
@@ -184,6 +215,8 @@ export const useOnboardingStore = create<OnboardingState>()(
           role,
           partialProfile: null,
           fallbackMode: false,
+          confirmationFields: {},
+          saveSuccess: false,
         });
       },
 
@@ -272,6 +305,123 @@ export const useOnboardingStore = create<OnboardingState>()(
               createMessage("system", "Sorry, something went wrong. Please try again."),
             ],
           }));
+        }
+      },
+
+      submitVoice: async (audioData: string) => {
+        set({ isProcessing: true, error: null });
+
+        try {
+          const { role } = get();
+          const payload: VoiceOnboardPayload = {
+            audioData,
+            userType: role === "worker" ? "artisan" : "customer",
+          };
+
+          const response = await apiService.post<VoiceOnboardResponse>("/ai/onboard/voice", {
+            body: payload,
+          });
+
+          // Map AI response fields to confirmationFields
+          const { fullName, skills, bio, experience, avgPay, location } = response.data;
+          const confirmationFields: Record<string, string> = {
+            fullName,
+            skills: Array.isArray(skills) ? skills.join(", ") : String(skills),
+            bio,
+            experience,
+            avgPay,
+            location,
+          };
+
+          set({
+            confirmationFields,
+            isProcessing: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Voice processing failed. Please try text input.";
+          set({
+            isProcessing: false,
+            error: errorMessage,
+          });
+        }
+      },
+
+      submitText: async (text: string, context: Array<{ role: string; content: string }>) => {
+        set({ isProcessing: true, error: null });
+
+        try {
+          const { role } = get();
+          const payload: TextOnboardPayload = {
+            text,
+            userType: role === "worker" ? "artisan" : "customer",
+            context,
+          };
+
+          const response = await apiService.post<VoiceOnboardResponse>("/ai/onboard/text", {
+            body: payload,
+          });
+
+          // Map AI response fields to confirmationFields (same shape as voice response)
+          const { fullName, skills, bio, experience, avgPay, location } = response.data;
+          const confirmationFields: Record<string, string> = {
+            fullName,
+            skills: Array.isArray(skills) ? skills.join(", ") : String(skills),
+            bio,
+            experience,
+            avgPay,
+            location,
+          };
+
+          set({
+            confirmationFields,
+            isProcessing: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Text processing failed. Please try again.";
+          set({
+            isProcessing: false,
+            error: errorMessage,
+          });
+        }
+      },
+
+      correctField: (fieldName: string, value: string) => {
+        // Local-only field correction — no API call
+        set((state) => ({
+          confirmationFields: {
+            ...state.confirmationFields,
+            [fieldName]: value,
+          },
+        }));
+      },
+
+      confirmAndSave: async (): Promise<boolean> => {
+        const { confirmationFields } = get();
+
+        set({ isProcessing: true, error: null });
+
+        try {
+          await apiService.post("/user", {
+            body: confirmationFields,
+          });
+
+          set({
+            isProcessing: false,
+            saveSuccess: true,
+            error: null,
+          });
+
+          return true;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to save profile. Please try again.";
+          set({
+            isProcessing: false,
+            error: errorMessage,
+            saveSuccess: false,
+          });
+          return false;
         }
       },
 
@@ -466,6 +616,8 @@ export const useOnboardingStore = create<OnboardingState>()(
           role: "worker",
           partialProfile: null,
           fallbackMode: false,
+          confirmationFields: {},
+          saveSuccess: false,
         });
       },
     }),
@@ -479,6 +631,8 @@ export const useOnboardingStore = create<OnboardingState>()(
         role: state.role,
         partialProfile: state.partialProfile,
         fallbackMode: state.fallbackMode,
+        confirmationFields: state.confirmationFields,
+        saveSuccess: state.saveSuccess,
       }),
     }
   )

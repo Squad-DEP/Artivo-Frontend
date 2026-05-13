@@ -128,7 +128,10 @@ describe("RecommendationSection", () => {
     } as any);
 
     const { container } = render(<RecommendationSection isNewCustomer={true} />);
-    const links = container.querySelectorAll("a");
+    // Filter links to only those pointing to artisan profiles
+    const links = Array.from(container.querySelectorAll("a")).filter((a) =>
+      a.getAttribute("href")?.startsWith("/artisan/")
+    );
 
     // Bob (92) should come first, then Alice (85), then Carol (78)
     expect(links[0]).toHaveAttribute("href", "/artisan/bob-plumber");

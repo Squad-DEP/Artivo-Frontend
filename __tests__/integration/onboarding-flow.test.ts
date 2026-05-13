@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import type { VoiceOnboardResponse } from "@/api/types/marketplace-api";
 
 // Mock the API service
 vi.mock("@/api/api-service", () => ({
@@ -406,6 +407,248 @@ describe("Integration: Onboarding Flow", () => {
 
       expect(result).toBe(false);
       expect(useOnboardingStore.getState().error).toBe("Profile creation failed");
+    });
+  });
+
+  describe("Voice Onboarding → Confirm → Save Flow", () => {
+    const mockVoiceResponse: VoiceOnboardResponse = {
+      message: true,
+      data: {
+        fullName: "Adebayo Ogunlesi",
+        skills: ["Plumbing", "Pipe Fitting", "Water Heater Installation"],
+        bio: "Professional plumber with over 8 years of experience in residential and commercial plumbing.",
+        experience: "8 years",
+        avgPay: "15000",
+        location: "Lagos, Nigeria",
+      },
+    };
+
+    it("should populate confirmationFields after submitVoice with base64 audio", async () => {
+      // Validates: Requirements 6.1, 6.3
+      useOnboardingStore.getState().reset();
+
+      mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
+
+      const base64Audio = "SGVsbG8gV29ybGQ="; // base64 encoded audio
+      await useOnboardingStore.getState().submitVoice(base64Audio);
+
+      // Verify API was called with correct payload
+      expect(mockedApiService.post).toHaveBeenCalledWith("/ai/onboard/voice", {
+        body: {
+          audioData: base64Audio,
+          userType: "artisan",
+        },
+      });
+
+      // Verify confirmationFields are populated from AI response
+      const state = useOnboardingStore.getState();
+      expect(state.isProcessing).toBe(false);
+      expect(state.error).toBeNull();
+      expect(state.confirmationFields).toEqual({
+        fullName: "Adebayo Ogunlesi",
+        skills: "Plumbing, Pipe Fitting, Water Heater Installation",
+        bio: "Professional plumber with over 8 years of experience in residential and commercial plumbing.",
+        experience: "8 years",
+        avgPay: "15000",
+        location: "Lagos, Nigeria",
+      });
+    });
+
+    it("should correct a field locally without making an API call", async () => {
+      // Validates: Requirements 7.1, 7.2
+      useOnboardingStore.getState().reset();
+
+      // First, populate fields via voice
+      mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
+      await useOnboardingStore.getState().submitVoice("base64audio");
+
+      // Clear mock call history to verify no API call on correction
+      vi.clearAllMocks();
+
+      // Correct the fullName field
+      useOnboardingStore.getState().correctField("fullName", "Adebayo Ogunlesi Jr.");
+
+      const state = useOnboardingStore.getState();
+      expect(state.confirmationFields.fullName).toBe("Adebayo Ogunlesi Jr.");
+
+      // Verify no API calls were made during correction
+      expect(mockedApiService.post).not.toHaveBeenCalled();
+      expect(mockedApiService.get).not.toHaveBeenCalled();
+
+      // Other fields remain unchanged
+      expect(state.confirmationFields.skills).toBe("Plumbing, Pipe Fitting, Water Heater Installation");
+      expect(state.confirmationFields.bio).toBe(
+        "Professional plumber with over 8 years of experience in residential and commercial plumbing."
+      );
+      expect(state.confirmationFields.experience).toBe("8 years");
+      expect(state.confirmationFields.avgPay).toBe("15000");
+      expect(state.confirmationFields.location).toBe("Lagos, Nigeria");
+    });
+
+    it("should call POST /user with final fields on confirmAndSave and set saveSuccess", async () => {
+      // Validates: Requirements 7.3
+      useOnboardingStore.getState().reset();
+
+      // Populate fields via voice
+      mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
+      await useOnboardingStore.getState().submitVoice("base64audio");
+
+      // Correct a field before saving
+      useOnboardingStore.getState().correctField("avgPay", "20000");
+
+      // Mock the POST /user call
+      mockedApiService.post.mockResolvedValueOnce({});
+
+      // Confirm and save
+      const result = await useOnboardingStore.getState().confirmAndSave();
+
+      expect(result).toBe(true);
+
+      // Verify POST /user was called with the final (corrected) fields
+      expect(mockedApiService.post).toHaveBeenCalledWith("/user", {
+        body: {
+          fullName: "Adebayo Ogunlesi",
+          skills: "Plumbing, Pipe Fitting, Water Heater Installation",
+          bio: "Professional plumber with over 8 years of experience in residential and commercial plumbing.",
+          experience: "8 years",
+          avgPay: "20000", // corrected value
+          location: "Lagos, Nigeria",
+        },
+      });
+
+      // Verify saveSuccess is true
+      const state = useOnboardingStore.getState();
+      expect(state.saveSuccess).toBe(true);
+      expect(state.isProcessing).toBe(false);
+      expect(state.error).toBeNull();
+    });
+
+    it("should fall back to submitText when submitVoice fails, and populate confirmationFields", async () => {
+      // Validates: Requirements 6.1, 6.3, 6.4
+      useOnboardingStore.getState().reset();
+
+      // Voice endpoint fails
+      mockedApiService.post.mockRejectedValueOnce(new Error("Voice processing failed. Please try text input."));
+
+      await useOnboardingStore.getState().submitVoice("base64audio");
+
+      // Verify error state after voice failure
+      let state = useOnboardingStore.getState();
+      expect(state.error).toBe("Voice processing failed. Please try text input.");
+      expect(state.isProcessing).toBe(false);
+      expect(Object.keys(state.confirmationFields)).toHaveLength(0);
+
+      // Fall back to text input
+      const textResponse: VoiceOnboardResponse = {
+        message: true,
+        data: {
+          fullName: "Adebayo Ogunlesi",
+          skills: ["Plumbing", "Pipe Fitting"],
+          bio: "Experienced plumber based in Lagos.",
+          experience: "8 years",
+          avgPay: "15000",
+          location: "Lagos, Nigeria",
+        },
+      };
+      mockedApiService.post.mockResolvedValueOnce(textResponse);
+
+      const context = [{ role: "user", content: "I am a plumber with 8 years experience in Lagos" }];
+      await useOnboardingStore.getState().submitText(
+        "I am a plumber with 8 years experience in Lagos",
+        context
+      );
+
+      // Verify text endpoint was called correctly
+      expect(mockedApiService.post).toHaveBeenCalledWith("/ai/onboard/text", {
+        body: {
+          text: "I am a plumber with 8 years experience in Lagos",
+          userType: "artisan",
+          context,
+        },
+      });
+
+      // Verify confirmationFields are now populated from text response
+      state = useOnboardingStore.getState();
+      expect(state.isProcessing).toBe(false);
+      expect(state.error).toBeNull();
+      expect(state.confirmationFields).toEqual({
+        fullName: "Adebayo Ogunlesi",
+        skills: "Plumbing, Pipe Fitting",
+        bio: "Experienced plumber based in Lagos.",
+        experience: "8 years",
+        avgPay: "15000",
+        location: "Lagos, Nigeria",
+      });
+    });
+
+    it("should handle confirmAndSave failure and preserve form state", async () => {
+      // Validates: Requirements 7.5
+      useOnboardingStore.getState().reset();
+
+      // Populate fields via voice
+      mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
+      await useOnboardingStore.getState().submitVoice("base64audio");
+
+      // Mock POST /user failure
+      mockedApiService.post.mockRejectedValueOnce(new Error("Failed to save profile. Please try again."));
+
+      const result = await useOnboardingStore.getState().confirmAndSave();
+
+      expect(result).toBe(false);
+
+      const state = useOnboardingStore.getState();
+      expect(state.saveSuccess).toBe(false);
+      expect(state.error).toBe("Failed to save profile. Please try again.");
+      expect(state.isProcessing).toBe(false);
+
+      // Confirmation fields are preserved for retry
+      expect(state.confirmationFields.fullName).toBe("Adebayo Ogunlesi");
+      expect(state.confirmationFields.skills).toBe("Plumbing, Pipe Fitting, Water Heater Installation");
+    });
+
+    it("should handle multiple field corrections before saving", async () => {
+      // Validates: Requirements 7.1, 7.2, 7.3
+      useOnboardingStore.getState().reset();
+
+      // Populate fields via voice
+      mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
+      await useOnboardingStore.getState().submitVoice("base64audio");
+
+      // Correct multiple fields
+      useOnboardingStore.getState().correctField("fullName", "Adebayo O.");
+      useOnboardingStore.getState().correctField("location", "Ikeja, Lagos");
+      useOnboardingStore.getState().correctField("experience", "10 years");
+
+      // Verify all corrections applied locally
+      let state = useOnboardingStore.getState();
+      expect(state.confirmationFields.fullName).toBe("Adebayo O.");
+      expect(state.confirmationFields.location).toBe("Ikeja, Lagos");
+      expect(state.confirmationFields.experience).toBe("10 years");
+      // Unchanged fields
+      expect(state.confirmationFields.skills).toBe("Plumbing, Pipe Fitting, Water Heater Installation");
+      expect(state.confirmationFields.bio).toBe(
+        "Professional plumber with over 8 years of experience in residential and commercial plumbing."
+      );
+      expect(state.confirmationFields.avgPay).toBe("15000");
+
+      // Save with corrected fields
+      mockedApiService.post.mockResolvedValueOnce({});
+      const result = await useOnboardingStore.getState().confirmAndSave();
+
+      expect(result).toBe(true);
+      expect(mockedApiService.post).toHaveBeenCalledWith("/user", {
+        body: {
+          fullName: "Adebayo O.",
+          skills: "Plumbing, Pipe Fitting, Water Heater Installation",
+          bio: "Professional plumber with over 8 years of experience in residential and commercial plumbing.",
+          experience: "10 years",
+          avgPay: "15000",
+          location: "Ikeja, Lagos",
+        },
+      });
+
+      state = useOnboardingStore.getState();
+      expect(state.saveSuccess).toBe(true);
     });
   });
 });

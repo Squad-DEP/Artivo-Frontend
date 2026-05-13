@@ -1,12 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { useReputationStore } from "@/store/reputationStore";
+import { useCreditStore } from "@/store/creditStore";
+import { useJobStore } from "@/store/jobStore";
 import { useOAuthRedirect } from "@/hooks/useOAuthRedirect";
 import { motion } from "framer-motion";
 import {
   Briefcase,
   TrendingUp,
+  TrendingDown,
+  Minus,
   Star,
   ArrowRight,
   Clock,
@@ -14,6 +20,9 @@ import {
   AlertCircle,
   Search,
   Plus,
+  Shield,
+  Target,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -41,45 +50,133 @@ export default function DashboardPage() {
   return <CustomerDashboard userName={userName} />;
 }
 
+// ─── Trust Score Gauge (compact) ─────────────────────────────────────────────
+
+function TrustGaugeCompact({ score }: { score: number }) {
+  const circumference = 2 * Math.PI * 36;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <div className="relative w-24 h-24">
+      <svg className="w-full h-full transform -rotate-90">
+        <circle cx="48" cy="48" r="36" stroke="currentColor" strokeWidth="6" fill="none" className="text-gray-100" />
+        <motion.circle
+          cx="48" cy="48" r="36"
+          stroke="url(#trustGradientDash)"
+          strokeWidth="6"
+          fill="none"
+          strokeLinecap="round"
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          style={{ strokeDasharray: circumference }}
+        />
+        <defs>
+          <linearGradient id="trustGradientDash" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#059669" />
+            <stop offset="100%" stopColor="#10B981" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xl font-bold text-gray-900">{Math.round(score)}</span>
+        <span className="text-[10px] text-gray-500">/ 100</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Credit Score Gauge (compact) ────────────────────────────────────────────
+
+function CreditGaugeCompact({ score }: { score: number }) {
+  const min = 300;
+  const max = 850;
+  const circumference = 2 * Math.PI * 36;
+  const percentage = ((score - min) / (max - min)) * 100;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  const getColor = (s: number) => {
+    if (s >= 750) return { from: "#059669", to: "#10B981" };
+    if (s >= 650) return { from: "#D97706", to: "#F59E0B" };
+    if (s >= 550) return { from: "#EA580C", to: "#F97316" };
+    return { from: "#DC2626", to: "#EF4444" };
+  };
+  const colors = getColor(score);
+
+  return (
+    <div className="relative w-24 h-24">
+      <svg className="w-full h-full transform -rotate-90">
+        <circle cx="48" cy="48" r="36" stroke="currentColor" strokeWidth="6" fill="none" className="text-gray-100" />
+        <motion.circle
+          cx="48" cy="48" r="36"
+          stroke={`url(#creditGradientDash)`}
+          strokeWidth="6"
+          fill="none"
+          strokeLinecap="round"
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          style={{ strokeDasharray: circumference }}
+        />
+        <defs>
+          <linearGradient id="creditGradientDash" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={colors.from} />
+            <stop offset="100%" stopColor={colors.to} />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xl font-bold text-gray-900">{Math.round(score)}</span>
+        <span className="text-[10px] text-gray-500">/ 850</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Worker Dashboard ────────────────────────────────────────────────────────
+
 function WorkerDashboard({ userName }: { userName: string }) {
   const router = useRouter();
 
-  // Mock data - in production, this would come from API hooks
-  const stats = {
-    activeJobs: 3,
-    completedJobs: 47,
-    totalEarnings: 2450000,
-    pendingEarnings: 180000,
-    trustScore: 87,
-    creditScore: 720,
-  };
+  const {
+    trustScore,
+    reviewSummary,
+    isLoading: repLoading,
+    fetchReputation,
+    fetchReviews,
+  } = useReputationStore();
 
-  const recentJobs = [
-    {
-      id: "1",
-      title: "Kitchen Plumbing Repair",
-      customer: "Adaobi N.",
-      status: "in_progress",
-      amount: 45000,
-      dueDate: "2025-05-15",
-    },
-    {
-      id: "2",
-      title: "Electrical Wiring Installation",
-      customer: "Emeka O.",
-      status: "in_progress",
-      amount: 120000,
-      dueDate: "2025-05-18",
-    },
-    {
-      id: "3",
-      title: "AC Maintenance",
-      customer: "Funke A.",
-      status: "pending",
-      amount: 25000,
-      dueDate: "2025-05-20",
-    },
-  ];
+  const {
+    creditScore,
+    isLoading: creditLoading,
+    fetchCreditProfile,
+  } = useCreditStore();
+
+  const {
+    workerStats,
+    isLoading: jobsLoading,
+    fetchStats,
+  } = useJobStore();
+
+  useEffect(() => {
+    fetchReputation();
+    fetchReviews();
+    fetchCreditProfile();
+    fetchStats();
+  }, [fetchReputation, fetchReviews, fetchCreditProfile, fetchStats]);
+
+  const overallTrust = trustScore?.overall ?? 0;
+  const trustTrend = trustScore?.trend ?? "stable";
+  const trustChange = trustScore?.trend_change ?? 0;
+  const credit = creditScore?.score ?? 0;
+  const avgRating = reviewSummary?.average_rating ?? 0;
+  const totalReviews = reviewSummary?.total_reviews ?? 0;
+  const completionRate = trustScore?.components?.completion_rate ?? 0;
+  const activeJobs = workerStats?.active_jobs ?? 0;
+  const completedJobs = workerStats?.completed_jobs ?? 0;
+  const totalEarned = workerStats?.total_earned ?? 0;
+
+  const isLoading = repLoading && !trustScore;
 
   return (
     <div className="space-y-6">
@@ -90,11 +187,11 @@ function WorkerDashboard({ userName }: { userName: string }) {
             Welcome back, {userName}!
           </h1>
           <p className="text-gray-500 mt-1">
-            Here&apos;s what&apos;s happening with your work
+            Here&apos;s your reputation and work at a glance
           </p>
         </div>
         <Button
-          onClick={() => router.push("/marketplace")}
+          onClick={() => router.push("/dashboard/jobs/feed")}
           className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
         >
           <Search className="w-4 h-4 mr-2" />
@@ -102,151 +199,217 @@ function WorkerDashboard({ userName }: { userName: string }) {
         </Button>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Briefcase className="w-5 h-5" />}
           label="Active Jobs"
-          value={stats.activeJobs.toString()}
-          trend="+2 this week"
+          value={activeJobs.toString()}
           color="blue"
         />
         <StatCard
           icon={<CheckCircle2 className="w-5 h-5" />}
-          label="Completed Jobs"
-          value={stats.completedJobs.toString()}
-          trend="All time"
+          label="Completed"
+          value={completedJobs.toString()}
           color="green"
         />
         <StatCard
           icon={<Star className="w-5 h-5" />}
-          label="Trust Score"
-          value={stats.trustScore.toString()}
-          trend="Top 15%"
+          label="Avg Rating"
+          value={avgRating > 0 ? avgRating.toFixed(1) : "—"}
+          trend={totalReviews > 0 ? `${totalReviews} reviews` : undefined}
           color="orange"
         />
         <StatCard
-          icon={<TrendingUp className="w-5 h-5" />}
-          label="Credit Score"
-          value={stats.creditScore.toString()}
-          trend="Good"
+          icon={<Target className="w-5 h-5" />}
+          label="Completion Rate"
+          value={completionRate > 0 ? `${Math.round(completionRate)}%` : "—"}
           color="purple"
         />
       </div>
 
-      {/* Main Content Grid */}
+      {/* Reputation & Credit Section */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Active Jobs */}
+        {/* Trust Score Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Active Jobs</h2>
-            <Link
-              href="/dashboard/jobs"
-              className="text-sm text-[var(--orange)] hover:underline flex items-center gap-1"
-            >
-              See all <ArrowRight className="w-4 h-4" />
-            </Link>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-600" />
+                Trust Score
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">Platform reputation</p>
+            </div>
+            {trustTrend === "up" && (
+              <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                <TrendingUp className="w-3 h-3" />+{trustChange}
+              </span>
+            )}
+            {trustTrend === "down" && (
+              <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                <TrendingDown className="w-3 h-3" />{trustChange}
+              </span>
+            )}
+            {trustTrend === "stable" && (
+              <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+                <Minus className="w-3 h-3" />Stable
+              </span>
+            )}
           </div>
 
-          <div className="space-y-4">
-            {recentJobs.map((job) => (
-              <div
-                key={job.id}
-                className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                onClick={() => router.push(`/dashboard/jobs/${job.id}`)}
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">{job.title}</h3>
-                  <p className="text-xs text-gray-500">{job.customer}</p>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="font-semibold text-sm">
-                    ₦{job.amount.toLocaleString()}
-                  </p>
-                  <JobStatusBadge status={job.status} />
-                </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-6">
+              <TrustGaugeCompact score={overallTrust} />
+              <div className="flex-1 space-y-3">
+                {trustScore?.components && (
+                  <>
+                    <MiniBar label="Customer Satisfaction" value={trustScore.components.customer_satisfaction} />
+                    <MiniBar label="Response Time" value={trustScore.components.response_time} />
+                    <MiniBar label="Verification" value={trustScore.components.verification_level} />
+                  </>
+                )}
               </div>
-            ))}
-          </div>
-
-          {recentJobs.length === 0 && (
-            <div className="text-center py-8">
-              <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No active jobs</p>
-              <Button
-                variant="link"
-                className="text-[var(--orange)]"
-                onClick={() => router.push("/marketplace")}
-              >
-                Browse available jobs
-              </Button>
             </div>
           )}
         </motion.div>
 
-        {/* Quick Actions & Insights */}
+        {/* Credit Score Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-white rounded-2xl border border-gray-100 p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+                Credit Score
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">Alternative credit rating</p>
+            </div>
+          </div>
+
+          {creditLoading && !creditScore ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
+            </div>
+          ) : credit > 0 ? (
+            <div className="flex items-center gap-6">
+              <CreditGaugeCompact score={credit} />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-gray-600">
+                  Based on your job history, earnings consistency, and platform tenure.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    credit >= 750 ? "bg-green-100 text-green-700" :
+                    credit >= 650 ? "bg-yellow-100 text-yellow-700" :
+                    credit >= 550 ? "bg-orange-100 text-orange-700" :
+                    "bg-red-100 text-red-700"
+                  }`}>
+                    {credit >= 750 ? "Excellent" : credit >= 650 ? "Good" : credit >= 550 ? "Fair" : "Building"}
+                  </span>
+                </div>
+                {creditScore?.eligible_products && creditScore.eligible_products.length > 0 && (
+                  <p className="text-xs text-emerald-600 mt-1">
+                    ✓ {creditScore.eligible_products.length} financial product{creditScore.eligible_products.length > 1 ? "s" : ""} available
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-32 text-center">
+              <div>
+                <p className="text-sm text-gray-500">Complete jobs to build your credit score</p>
+                <p className="text-xs text-gray-400 mt-1">Score updates after each completed job</p>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Recent Reviews */}
+      {reviewSummary && reviewSummary.recent_reviews.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="space-y-6"
+          className="bg-white rounded-2xl border border-gray-100 p-6"
         >
-          {/* Earnings Summary */}
-          <div className="bg-gradient-to-br from-[var(--orange)] to-[var(--orange)]/80 rounded-2xl p-6 text-white">
-            <h3 className="text-sm font-medium opacity-90 mb-2">
-              Total Earnings
-            </h3>
-            <p className="text-3xl font-bold mb-4">
-              ₦{stats.totalEarnings.toLocaleString()}
-            </p>
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                className="bg-white text-[var(--orange)] hover:bg-white/90"
-                onClick={() => router.push("/dashboard/reputation")}
-              >
-                View Reputation
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-white text-white hover:bg-white/10"
-                onClick={() => router.push("/dashboard/credit")}
-              >
-                Credit Score
-              </Button>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Recent Reviews</h2>
+            <Link
+              href="/dashboard/reputation"
+              className="text-sm text-[var(--orange)] hover:underline flex items-center gap-1"
+            >
+              View all <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
+          <div className="space-y-3">
+            {reviewSummary.recent_reviews.slice(0, 3).map((review) => (
+              <div key={review.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center font-medium text-gray-600 text-sm shrink-0">
+                  {review.reviewer_name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 truncate">{review.reviewer_name}</p>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-3 h-3 ${i < review.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-200"}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{review.comment}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <h3 className="font-semibold mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <QuickActionButton
-                icon={<Search className="w-5 h-5" />}
-                label="Find Jobs"
-                onClick={() => router.push("/marketplace")}
-              />
-              <QuickActionButton
-                icon={<Star className="w-5 h-5" />}
-                label="View Reputation"
-                onClick={() => router.push("/dashboard/reputation")}
-              />
-              <QuickActionButton
-                icon={<TrendingUp className="w-5 h-5" />}
-                label="Credit Score"
-                onClick={() => router.push("/dashboard/credit")}
-              />
-              <QuickActionButton
-                icon={<Briefcase className="w-5 h-5" />}
-                label="My Jobs"
-                onClick={() => router.push("/dashboard/jobs")}
-              />
-            </div>
+      {/* Earnings + Quick Actions */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-gradient-to-br from-[var(--orange)] to-[var(--orange)]/80 rounded-2xl p-6 text-white"
+        >
+          <h3 className="text-sm font-medium opacity-90 mb-2">Total Earnings</h3>
+          <p className="text-3xl font-bold mb-4">
+            ₦{totalEarned.toLocaleString()}
+          </p>
+          <Button
+            size="sm"
+            className="bg-white text-[var(--orange)] hover:bg-white/90"
+            onClick={() => router.push("/dashboard/payments")}
+          >
+            View Payments
+          </Button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl border border-gray-100 p-6"
+        >
+          <h3 className="font-semibold mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <QuickActionButton icon={<Search className="w-5 h-5" />} label="Job Feed" onClick={() => router.push("/dashboard/jobs/feed")} />
+            <QuickActionButton icon={<Briefcase className="w-5 h-5" />} label="My Jobs" onClick={() => router.push("/dashboard/jobs")} />
+            <QuickActionButton icon={<Star className="w-5 h-5" />} label="Marketplace" onClick={() => router.push("/marketplace")} />
+            <QuickActionButton icon={<TrendingUp className="w-5 h-5" />} label="Payments" onClick={() => router.push("/dashboard/payments")} />
           </div>
         </motion.div>
       </div>
@@ -254,45 +417,20 @@ function WorkerDashboard({ userName }: { userName: string }) {
   );
 }
 
+// ─── Customer Dashboard ──────────────────────────────────────────────────────
+
 function CustomerDashboard({ userName }: { userName: string }) {
   const router = useRouter();
 
-  // Mock data
-  const stats = {
-    activeJobs: 2,
-    completedJobs: 15,
-    totalSpent: 850000,
-    savedArtisans: 8,
-  };
+  const { customerStats, isLoading: jobsLoading, fetchStats } = useJobStore();
 
-  const recentJobs = [
-    {
-      id: "1",
-      title: "Home Painting",
-      worker: "Chidi E.",
-      status: "in_progress",
-      amount: 150000,
-    },
-    {
-      id: "2",
-      title: "Generator Servicing",
-      worker: "Pending",
-      status: "open",
-      amount: 35000,
-    },
-  ];
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
-  const recommendedArtisans = [
-    {
-      id: "1",
-      name: "Adebayo O.",
-      skill: "Electrician",
-      rating: 4.9,
-      jobs: 124,
-    },
-    { id: "2", name: "Grace M.", skill: "Tailor", rating: 4.8, jobs: 89 },
-    { id: "3", name: "Uche N.", skill: "Plumber", rating: 4.7, jobs: 156 },
-  ];
+  const activeJobs = customerStats?.active_jobs ?? 0;
+  const completedJobs = customerStats?.completed_jobs ?? 0;
+  const totalSpent = customerStats?.total_spent ?? 0;
 
   return (
     <div className="space-y-6">
@@ -302,138 +440,93 @@ function CustomerDashboard({ userName }: { userName: string }) {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Welcome back, {userName}!
           </h1>
-          <p className="text-gray-500 mt-1">
-            Find skilled artisans for any job
-          </p>
+          <p className="text-gray-500 mt-1">Find skilled artisans for any job</p>
         </div>
         <Button
-          onClick={() => router.push("/dashboard/jobs/new")}
+          onClick={() => router.push("/marketplace")}
           className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Post a Job
+          <Search className="w-4 h-4 mr-2" />
+          Find Artisans
         </Button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Briefcase className="w-5 h-5" />}
-          label="Active Jobs"
-          value={stats.activeJobs.toString()}
-          color="blue"
-        />
-        <StatCard
-          icon={<CheckCircle2 className="w-5 h-5" />}
-          label="Completed"
-          value={stats.completedJobs.toString()}
-          color="green"
-        />
-        <StatCard
-          icon={<Search className="w-5 h-5" />}
-          label="Total Spent"
-          value={`₦${(stats.totalSpent / 1000).toFixed(0)}k`}
-          color="orange"
-        />
-        <StatCard
-          icon={<Star className="w-5 h-5" />}
-          label="Saved Artisans"
-          value={stats.savedArtisans.toString()}
-          color="purple"
-        />
+        <StatCard icon={<Briefcase className="w-5 h-5" />} label="Active Jobs" value={activeJobs.toString()} color="blue" />
+        <StatCard icon={<CheckCircle2 className="w-5 h-5" />} label="Completed" value={completedJobs.toString()} color="green" />
+        <StatCard icon={<Target className="w-5 h-5" />} label="Total Spent" value={totalSpent > 0 ? `₦${(totalSpent / 1000).toFixed(0)}k` : "₦0"} color="orange" />
+        <StatCard icon={<Star className="w-5 h-5" />} label="Jobs Posted" value={(activeJobs + completedJobs).toString()} color="purple" />
       </div>
 
-      {/* Main Content Grid */}
+      {/* Main Content */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* My Jobs */}
+        {/* Quick Hire */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">My Jobs</h2>
-            <Link
-              href="/dashboard/jobs"
-              className="text-sm text-[var(--orange)] hover:underline flex items-center gap-1"
+          <h2 className="text-lg font-semibold mb-4">Get Started</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Browse the marketplace to find and hire skilled artisans near you.
+          </p>
+          <div className="space-y-3">
+            <Button
+              className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
+              onClick={() => router.push("/marketplace")}
             >
-              See all <ArrowRight className="w-4 h-4" />
-            </Link>
+              <Search className="w-4 h-4 mr-2" />
+              Browse Artisans
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push("/dashboard/payments")}
+            >
+              View Payment History
+            </Button>
           </div>
-
-          <div className="space-y-4">
-            {recentJobs.map((job) => (
-              <div
-                key={job.id}
-                className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                onClick={() => router.push(`/dashboard/jobs/${job.id}`)}
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate">{job.title}</h3>
-                  <p className="text-xs text-gray-500">Worker: {job.worker}</p>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="font-semibold text-sm">
-                    ₦{job.amount.toLocaleString()}
-                  </p>
-                  <JobStatusBadge status={job.status} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full mt-4"
-            onClick={() => router.push("/dashboard/jobs/new")}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Post New Job
-          </Button>
         </motion.div>
 
-        {/* Recommended Artisans */}
+        {/* Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Recommended Artisans</h2>
-            <Link
-              href="/marketplace"
-              className="text-sm text-[var(--orange)] hover:underline flex items-center gap-1"
-            >
-              Browse all <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="space-y-4">
-            {recommendedArtisans.map((artisan) => (
-              <div
-                key={artisan.id}
-                className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
-                onClick={() => router.push(`/artisan/${artisan.id}`)}
-              >
-                <div className="w-12 h-12 rounded-full bg-[var(--orange)]/20 flex items-center justify-center text-[var(--orange)] font-semibold">
-                  {artisan.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm">{artisan.name}</h3>
-                  <p className="text-xs text-gray-500">{artisan.skill}</p>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-sm">
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-medium">{artisan.rating}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">{artisan.jobs} jobs</p>
-                </div>
-              </div>
-            ))}
+          <h3 className="font-semibold mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <QuickActionButton icon={<Search className="w-5 h-5" />} label="Marketplace" onClick={() => router.push("/marketplace")} />
+            <QuickActionButton icon={<Briefcase className="w-5 h-5" />} label="My Jobs" onClick={() => router.push("/dashboard/jobs")} />
+            <QuickActionButton icon={<TrendingUp className="w-5 h-5" />} label="Payments" onClick={() => router.push("/dashboard/payments")} />
+            <QuickActionButton icon={<Star className="w-5 h-5" />} label="Profile" onClick={() => router.push("/dashboard/profile")} />
           </div>
         </motion.div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Shared Components ───────────────────────────────────────────────────────
+
+function MiniBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs font-medium text-gray-700">{Math.round(value)}%</span>
+      </div>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <motion.div
+          className={`h-full rounded-full ${
+            value >= 80 ? "bg-green-500" : value >= 60 ? "bg-yellow-500" : "bg-red-400"
+          }`}
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        />
       </div>
     </div>
   );
@@ -465,54 +558,13 @@ function StatCard({
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5"
     >
-      <div
-        className={`w-10 h-10 rounded-lg ${colorClasses[color]} flex items-center justify-center mb-3`}
-      >
+      <div className={`w-10 h-10 rounded-lg ${colorClasses[color]} flex items-center justify-center mb-3`}>
         {icon}
       </div>
       <p className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</p>
       <p className="text-sm text-gray-500">{label}</p>
       {trend && <p className="text-xs text-gray-400 mt-1">{trend}</p>}
     </motion.div>
-  );
-}
-
-function JobStatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<
-    string,
-    { label: string; className: string; icon: React.ReactNode }
-  > = {
-    open: {
-      label: "Open",
-      className: "bg-blue-100 text-blue-700",
-      icon: <AlertCircle className="w-3 h-3" />,
-    },
-    in_progress: {
-      label: "In Progress",
-      className: "bg-yellow-100 text-yellow-700",
-      icon: <Clock className="w-3 h-3" />,
-    },
-    completed: {
-      label: "Completed",
-      className: "bg-green-100 text-green-700",
-      icon: <CheckCircle2 className="w-3 h-3" />,
-    },
-    pending: {
-      label: "Pending",
-      className: "bg-gray-100 text-gray-700",
-      icon: <Clock className="w-3 h-3" />,
-    },
-  };
-
-  const config = statusConfig[status] || statusConfig.pending;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.className}`}
-    >
-      {config.icon}
-      {config.label}
-    </span>
   );
 }
 

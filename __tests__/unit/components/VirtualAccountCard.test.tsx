@@ -41,6 +41,7 @@ describe("VirtualAccountCard", () => {
         account_number: "1234567890",
         bank_name: "Squad Bank",
         account_name: "John Doe",
+        bank_code: "058",
         status: "active",
         created_at: "2024-01-01T00:00:00Z",
       },
@@ -53,6 +54,7 @@ describe("VirtualAccountCard", () => {
     expect(screen.getByText("1234567890")).toBeInTheDocument();
     expect(screen.getByText("Squad Bank")).toBeInTheDocument();
     expect(screen.getByText("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("058")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
@@ -62,6 +64,7 @@ describe("VirtualAccountCard", () => {
         account_number: "1234567890",
         bank_name: "Squad Bank",
         account_name: "John Doe",
+        bank_code: "058",
         status: "pending",
         created_at: "2024-01-01T00:00:00Z",
       },
@@ -104,6 +107,7 @@ describe("VirtualAccountCard", () => {
         account_number: "",
         bank_name: "",
         account_name: "",
+        bank_code: "",
         status: "failed",
         created_at: "2024-01-01T00:00:00Z",
       },
@@ -142,6 +146,7 @@ describe("VirtualAccountCard", () => {
         account_number: "1234567890",
         bank_name: "Squad Bank",
         account_name: "John Doe",
+        bank_code: "058",
         status: "active",
         created_at: "2024-01-01T00:00:00Z",
       },

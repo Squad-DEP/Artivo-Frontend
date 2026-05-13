@@ -21,6 +21,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ErrorToast, useErrorToast } from "@/components/ui/ErrorToast";
 import { useReputationStore } from "@/store/reputationStore";
 import { BadgeNotification } from "@/components/reputation/BadgeNotification";
+import { calculateCreditScore, calculateCompletionRate } from "@/lib/utils/reputation";
 import type { Badge } from "@/api/types/reputation";
 
 // ─── Helper Components ───────────────────────────────────────────────────────
@@ -261,6 +262,17 @@ export default function ReputationPage() {
   const badges = trustScore?.badges ?? [];
   const components = trustScore?.components;
 
+  // Marketplace reputation metrics (Requirements 12.1, 12.2, 12.3)
+  const averageRating = reviewSummary?.average_rating ?? 0;
+  const totalJobs = reviewSummary?.total_reviews ?? 0;
+  const completionRate = components
+    ? calculateCompletionRate(
+        Math.round((components.completion_rate / 100) * totalJobs),
+        totalJobs
+      )
+    : 0;
+  const creditScore = calculateCreditScore(averageRating);
+
   return (
     <div className="space-y-6">
       {/* Badge Notification Toast */}
@@ -360,6 +372,50 @@ export default function ReputationPage() {
                 </div>
               </div>
             )}
+          </motion.div>
+
+          {/* Marketplace Metrics — Requirements 12.1, 12.2, 12.3 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-white rounded-2xl border border-gray-100 p-6"
+          >
+            <h2 className="text-lg font-semibold mb-6">Marketplace Metrics</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <Shield className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm text-gray-500">Credit Score</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{creditScore}</p>
+                <p className="text-xs text-gray-400 mt-0.5">out of 100</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-gray-500">Completion Rate</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{completionRate}%</p>
+                <p className="text-xs text-gray-400 mt-0.5">jobs completed</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <Target className="w-4 h-4 text-orange-600" />
+                  <span className="text-sm text-gray-500">Total Jobs</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{totalJobs}</p>
+                <p className="text-xs text-gray-400 mt-0.5">completed</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <span className="text-sm text-gray-500">Average Rating</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{averageRating.toFixed(1)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">out of 5.0</p>
+              </div>
+            </div>
           </motion.div>
 
           {/* Score Breakdown — Requirement 6.3 */}

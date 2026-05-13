@@ -11,8 +11,6 @@ import {
 } from "lucide-react";
 import { VirtualAccountCard } from "@/components/payments/VirtualAccountCard";
 import { TransactionList } from "@/components/payments/TransactionList";
-import { ErrorBanner } from "@/components/ui/ErrorBanner";
-import { ErrorToast, useErrorToast } from "@/components/ui/ErrorToast";
 import { usePaymentStore, type Transaction } from "@/store/paymentStore";
 
 function formatCurrency(amount: number): string {
@@ -95,16 +93,12 @@ function PaymentSummary({ transactions }: { transactions: Transaction[] }) {
 export default function PaymentsPage() {
   const { transactions, isLoading, error, fetchTransactions, clearError } =
     usePaymentStore();
-  const { toast, showToast, hideToast } = useErrorToast();
 
   useEffect(() => {
     fetchTransactions(1).catch(() => {
-      showToast("Connection lost. Unable to load transactions.", {
-        onRetry: () => fetchTransactions(1),
-        variant: "network",
-      });
+      // Silently handle — empty state will show
     });
-  }, [fetchTransactions, showToast]);
+  }, [fetchTransactions]);
 
   return (
     <div className="space-y-6">
@@ -115,29 +109,6 @@ export default function PaymentsPage() {
           Manage your virtual account and view transaction history
         </p>
       </div>
-
-      {/* Payment Error Banner — Requirement 5.6: failure → retry */}
-      {error && (
-        <ErrorBanner
-          message="Payment operation failed"
-          description={error}
-          onRetry={() => {
-            clearError();
-            fetchTransactions();
-          }}
-          onDismiss={clearError}
-          retryLabel="Try Again"
-        />
-      )}
-
-      {/* Network Error Toast */}
-      <ErrorToast
-        message={toast.message}
-        visible={toast.visible}
-        onDismiss={hideToast}
-        onRetry={toast.onRetry}
-        variant={toast.variant}
-      />
 
       {/* Virtual Account */}
       <section>

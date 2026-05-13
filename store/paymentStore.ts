@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { apiService } from "@/api/api-service";
 import { validatePaymentAmount } from "@/lib/validators";
+import { VirtualAccountResponse } from "@/api/types/marketplace-api";
 
 // --- Interfaces ---
 
@@ -8,6 +9,7 @@ export interface VirtualAccount {
   account_number: string;
   bank_name: string;
   account_name: string;
+  bank_code: string;
   status: "active" | "pending" | "failed";
   created_at: string;
 }
@@ -95,8 +97,19 @@ export const usePaymentStore = create<PaymentState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const data = await apiService.get<VirtualAccount>("/payments/account");
-      set({ virtualAccount: data, isLoading: false });
+      const data = await apiService.get<VirtualAccountResponse>("/user/virtual-account");
+      const va = data.virtual_account;
+      set({
+        virtualAccount: {
+          account_number: va.virtual_account_number,
+          account_name: va.virtual_account_name,
+          bank_name: va.bank_name,
+          bank_code: va.bank_code,
+          status: "active",
+          created_at: new Date().toISOString(),
+        },
+        isLoading: false,
+      });
     } catch (error) {
       set({
         error:

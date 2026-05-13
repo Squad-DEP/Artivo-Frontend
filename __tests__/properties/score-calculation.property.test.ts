@@ -494,3 +494,161 @@ describe("Feature: gig-worker-platform, Property 15: Financial Product Eligibili
     );
   });
 });
+
+
+// ─── Property 12: Credit score calculation (marketplace-integration) ─────────
+
+import {
+  calculateCreditScore as calculateMarketplaceCreditScore,
+  calculateCompletionRate,
+} from "@/lib/utils/reputation";
+
+/**
+ * Property 12: Credit score calculation
+ *
+ * For any averageRating in [0,5], `calculateCreditScore(averageRating)` equals
+ * `Math.round(averageRating * 20)` and is in [0,100].
+ *
+ * Feature: marketplace-integration, Property 12: Credit score calculation
+ * Validates: Requirements 12.2
+ */
+describe("Feature: marketplace-integration, Property 12: Credit score calculation", () => {
+  it("equals Math.round(averageRating * 20) for any rating in [0, 5]", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0, max: 5, noNaN: true, noDefaultInfinity: true }),
+        (averageRating) => {
+          const result = calculateMarketplaceCreditScore(averageRating);
+          expect(result).toBe(Math.round(averageRating * 20));
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("always produces a result in [0, 100] for any rating in [0, 5]", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0, max: 5, noNaN: true, noDefaultInfinity: true }),
+        (averageRating) => {
+          const result = calculateMarketplaceCreditScore(averageRating);
+          expect(result).toBeGreaterThanOrEqual(0);
+          expect(result).toBeLessThanOrEqual(100);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns 0 when averageRating is 0", () => {
+    expect(calculateMarketplaceCreditScore(0)).toBe(0);
+  });
+
+  it("returns 100 when averageRating is 5", () => {
+    expect(calculateMarketplaceCreditScore(5)).toBe(100);
+  });
+
+  it("always returns an integer", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0, max: 5, noNaN: true, noDefaultInfinity: true }),
+        (averageRating) => {
+          const result = calculateMarketplaceCreditScore(averageRating);
+          expect(Number.isInteger(result)).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ─── Property 13: Completion rate calculation ────────────────────────────────
+
+/**
+ * Property 13: Completion rate calculation
+ *
+ * For any (completed, total) where total > 0 and completed ≤ total,
+ * `calculateCompletionRate(completed, total)` equals `Math.round((completed/total)*100)`
+ * and is in [0,100].
+ *
+ * Feature: marketplace-integration, Property 13: Completion rate calculation
+ * Validates: Requirements 12.3
+ */
+describe("Feature: marketplace-integration, Property 13: Completion rate calculation", () => {
+  it("equals Math.round((completed/total)*100) for any valid inputs", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10000 }),
+        fc.double({ min: 0, max: 1, noNaN: true, noDefaultInfinity: true }),
+        (total, ratio) => {
+          const completed = Math.floor(ratio * total);
+          const result = calculateCompletionRate(completed, total);
+          expect(result).toBe(Math.round((completed / total) * 100));
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("always produces a result in [0, 100]", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10000 }),
+        fc.double({ min: 0, max: 1, noNaN: true, noDefaultInfinity: true }),
+        (total, ratio) => {
+          const completed = Math.floor(ratio * total);
+          const result = calculateCompletionRate(completed, total);
+          expect(result).toBeGreaterThanOrEqual(0);
+          expect(result).toBeLessThanOrEqual(100);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns 0 when completed is 0", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10000 }),
+        (total) => {
+          const result = calculateCompletionRate(0, total);
+          expect(result).toBe(0);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns 100 when completed equals total", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10000 }),
+        (total) => {
+          const result = calculateCompletionRate(total, total);
+          expect(result).toBe(100);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("always returns an integer", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10000 }),
+        fc.integer({ min: 0, max: 10000 }),
+        (total, completed) => {
+          // Ensure completed <= total
+          const safeCompleted = Math.min(completed, total);
+          const result = calculateCompletionRate(safeCompleted, total);
+          expect(Number.isInteger(result)).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns 0 when total is 0 (edge case, avoids division by zero)", () => {
+    expect(calculateCompletionRate(0, 0)).toBe(0);
+  });
+});

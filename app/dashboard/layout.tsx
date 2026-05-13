@@ -7,13 +7,8 @@ import {
   X,
   Home,
   Briefcase,
-  Settings,
-  Star,
-  TrendingUp,
   Search,
-  Heart,
   User,
-  FolderOpen,
   Wallet,
 } from "lucide-react";
 import { useState, useRef, useEffect, ReactElement } from "react";
@@ -113,29 +108,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       path: "/dashboard/jobs",
     },
     {
-      icon: <FolderOpen className="w-5 h-5" />,
-      label: "Portfolio",
-      path: "/dashboard/portfolio",
-    },
-    {
-      icon: <Star className="w-5 h-5" />,
-      label: "Reputation",
-      path: "/dashboard/reputation",
-    },
-    {
-      icon: <TrendingUp className="w-5 h-5" />,
-      label: "Credit Score",
-      path: "/dashboard/credit",
-    },
-    {
       icon: <Wallet className="w-5 h-5" />,
       label: "Payments",
       path: "/dashboard/payments",
-    },
-    {
-      icon: <Settings className="w-5 h-5" />,
-      label: "Settings",
-      path: "/dashboard/settings",
     },
   ];
 
@@ -157,14 +132,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       path: "/marketplace",
     },
     {
-      icon: <Heart className="w-5 h-5" />,
-      label: "Favorites",
-      path: "/dashboard/favorites",
-    },
-    {
-      icon: <Settings className="w-5 h-5" />,
-      label: "Settings",
-      path: "/dashboard/settings",
+      icon: <Wallet className="w-5 h-5" />,
+      label: "Payments",
+      path: "/dashboard/payments",
     },
   ];
 
@@ -176,18 +146,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-col md:flex-row min-h-screen bg-background">
         {/* Sidebar for desktop */}
         <aside className="fixed top-0 left-0 hidden md:flex flex-col h-full w-64 bg-white border-r border-[var(--sidebar-border)] px-4 py-6">
-          <Link href="/dashboard" className="w-max flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[var(--orange)] flex items-center justify-center">
-              <span className="text-white font-bold text-xl">A</span>
-            </div>
-            <span className="text-2xl font-bold text-[var(--sidebar-foreground)]">
-              {BRAND.name}
-            </span>
-          </Link>
+          <div className="flex justify-between items-center">
+            <Link href="/dashboard" className="w-max flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-[var(--orange)] flex items-center justify-center">
+                <span className="text-white font-bold text-xl">A</span>
+              </div>
+              <span className="text-2xl font-bold text-[var(--sidebar-foreground)]">
+                {BRAND.name}
+              </span>
+            </Link>
 
-          {/* User type badge */}
-          <div className="mt-4 px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600 w-max capitalize">
-            {userType || "User"}
+            {/* User type badge */}
+            <div className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600 w-max capitalize">
+              {userType || "User"}
+            </div>
           </div>
 
           <hr className="my-6 border-[#EBEBEB]" />

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as fc from "fast-check";
 import { usePaymentStore } from "@/store/paymentStore";
+import { nairaToKobo } from "@/lib/utils/payment";
 
 // Mock the API service
 vi.mock("@/api/api-service", () => ({
@@ -13,6 +14,62 @@ vi.mock("@/api/api-service", () => ({
 import { apiService } from "@/api/api-service";
 
 const mockedApiService = vi.mocked(apiService);
+
+// ─── Property 4: Naira to kobo conversion ────────────────────────────────────
+
+/**
+ * Property 4: Naira to kobo conversion
+ *
+ * For any positive numeric amount, `nairaToKobo(amount)` SHALL equal
+ * `Math.round(amount * 100)` and always be a positive integer.
+ *
+ * Feature: marketplace-integration, Property 4: Naira to kobo conversion
+ * Validates: Requirements 3.2
+ */
+describe("Feature: marketplace-integration, Property 4: Naira to kobo conversion", () => {
+  it("equals Math.round(amount * 100) for any positive amount", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0.01, max: 10_000_000, noNaN: true, noDefaultInfinity: true }),
+        (amount) => {
+          const result = nairaToKobo(amount);
+          expect(result).toBe(Math.round(amount * 100));
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("always returns a positive integer for positive input", () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0.01, max: 10_000_000, noNaN: true, noDefaultInfinity: true }),
+        (amount) => {
+          const result = nairaToKobo(amount);
+          expect(result).toBeGreaterThan(0);
+          expect(Number.isInteger(result)).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("handles decimal amounts correctly (e.g., 1500.50 → 150050)", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10_000_000 }),
+        fc.integer({ min: 0, max: 99 }),
+        (whole, decimal) => {
+          const amount = whole + decimal / 100;
+          const result = nairaToKobo(amount);
+          expect(result).toBe(Math.round(amount * 100));
+          expect(Number.isInteger(result)).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
 
 /**
  * Property 9: Payment Retry Limit

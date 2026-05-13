@@ -11,21 +11,24 @@ interface HireMeButtonProps {
   /** The worker's user ID (from their profile) */
   workerUserId?: string;
   className?: string;
+  /** Optional callback when the hire action is triggered for authenticated customers */
+  onHireClick?: () => void;
 }
 
 /**
  * HireMeButton — CTA on public profiles that routes based on auth state:
- * - Authenticated customers: links to job creation
+ * - Authenticated customers: triggers onHireClick callback (opens HireDialog) or links to job creation
  * - Workers viewing their own profile: hidden
  * - Unauthenticated visitors: redirects to login
  *
- * Validates: Requirements 3.5
+ * Validates: Requirements 2.1, 3.1, 3.5
  */
 export function HireMeButton({
   workerUsername,
   workerName,
   workerUserId,
   className,
+  onHireClick,
 }: HireMeButtonProps) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -53,8 +56,12 @@ export function HireMeButton({
     }
 
     if (isCustomer) {
-      // Authenticated customers go to job creation
-      router.push(`/dashboard/jobs/new?worker=${workerUsername}`);
+      // If onHireClick is provided, open the HireDialog; otherwise fall back to navigation
+      if (onHireClick) {
+        onHireClick();
+      } else {
+        router.push(`/dashboard/jobs/new?worker=${workerUsername}`);
+      }
     }
   };
 

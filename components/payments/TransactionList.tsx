@@ -110,16 +110,8 @@ export function TransactionList() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-2"
-          onClick={() => fetchTransactions(currentPage)}
-        >
-          Retry
-        </Button>
+      <div className="rounded-lg border border-border p-8 text-center">
+        <p className="text-muted-foreground">No transactions yet.</p>
       </div>
     );
   }

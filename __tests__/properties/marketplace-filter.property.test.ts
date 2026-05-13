@@ -11,6 +11,121 @@ vi.mock("@/api/api-service", () => ({
 
 import { buildQueryParams, MarketplaceFilters } from "@/store/marketplaceStore";
 
+// ─── Property 1: Filter parameters are correctly built (marketplace-integration) ─
+
+/**
+ * Property 1: Filter parameters are correctly built
+ *
+ * For any combination of MarketplaceFilters, `buildQueryParams` SHALL produce a query
+ * object where `category` maps to `job_type_id` and `location` (city/state) maps to
+ * a single `location` string param matching the backend's expected format.
+ *
+ * Feature: marketplace-integration, Property 1: Filter parameters are correctly built
+ * Validates: Requirements 1.2, 1.6
+ */
+describe("Feature: marketplace-integration, Property 1: Filter parameters are correctly built", () => {
+  const categoryArb = fc.string({ minLength: 1, maxLength: 50 });
+  const locationArb = fc.string({ minLength: 1, maxLength: 50 });
+  const pageArb = fc.integer({ min: 1, max: 100 });
+  const limitArb = fc.integer({ min: 1, max: 100 });
+
+  it("maps category filter to job_type_id query param", () => {
+    fc.assert(
+      fc.property(
+        categoryArb,
+        pageArb,
+        limitArb,
+        (category, page, limit) => {
+          const filters: MarketplaceFilters = { category };
+          const params = buildQueryParams("", filters, page, limit);
+
+          // category is mapped to job_type_id
+          expect(params.job_type_id).toBe(category);
+          expect(params).not.toHaveProperty("category");
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("maps location city and state to a single location query param", () => {
+    fc.assert(
+      fc.property(
+        locationArb,
+        locationArb,
+        pageArb,
+        limitArb,
+        (city, state, page, limit) => {
+          const filters: MarketplaceFilters = { location: { city, state } };
+          const params = buildQueryParams("", filters, page, limit);
+
+          // location fields are combined into a single location param
+          expect(params).toHaveProperty("location");
+          expect(params).not.toHaveProperty("city");
+          expect(params).not.toHaveProperty("state");
+
+          if (city && state && city !== state) {
+            expect(params.location).toBe(`${city}, ${state}`);
+          } else {
+            expect(params.location).toBe(city || state);
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("omits job_type_id param when category filter is undefined", () => {
+    fc.assert(
+      fc.property(
+        pageArb,
+        limitArb,
+        (page, limit) => {
+          const filters: MarketplaceFilters = {};
+          const params = buildQueryParams("", filters, page, limit);
+
+          expect(params).not.toHaveProperty("category");
+          expect(params).not.toHaveProperty("job_type_id");
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("omits location param when location filter is undefined", () => {
+    fc.assert(
+      fc.property(
+        pageArb,
+        limitArb,
+        (page, limit) => {
+          const filters: MarketplaceFilters = {};
+          const params = buildQueryParams("", filters, page, limit);
+
+          expect(params).not.toHaveProperty("city");
+          expect(params).not.toHaveProperty("state");
+          expect(params).not.toHaveProperty("location");
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("includes search query when provided for AI-semantic matching", () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1, maxLength: 100 }),
+        pageArb,
+        limitArb,
+        (query, page, limit) => {
+          const params = buildQueryParams(query, {}, page, limit);
+          expect(params.query).toBe(query);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
 /**
  * Property 7: Marketplace Filter Query Construction
  *
@@ -82,25 +197,18 @@ describe("Feature: gig-worker-platform, Property 7: Marketplace Filter Query Con
             expect(params).not.toHaveProperty("query");
           }
 
-          // Check category
+          // Check category → job_type_id
           if (filters.category) {
-            expect(params.category).toBe(filters.category);
+            expect(params.job_type_id).toBe(filters.category);
           } else {
-            expect(params).not.toHaveProperty("category");
+            expect(params).not.toHaveProperty("job_type_id");
           }
 
-          // Check location city
-          if (filters.location?.city) {
-            expect(params.city).toBe(filters.location.city);
+          // Check location (city/state combined into single location param)
+          if (filters.location?.city || filters.location?.state) {
+            expect(params).toHaveProperty("location");
           } else {
-            expect(params).not.toHaveProperty("city");
-          }
-
-          // Check location state
-          if (filters.location?.state) {
-            expect(params.state).toBe(filters.location.state);
-          } else {
-            expect(params).not.toHaveProperty("state");
+            expect(params).not.toHaveProperty("location");
           }
 
           // Check minRating
@@ -167,9 +275,8 @@ describe("Feature: gig-worker-platform, Property 7: Marketplace Filter Query Con
           // Define the set of all allowed keys
           const allowedKeys = new Set([
             "query",
-            "category",
-            "city",
-            "state",
+            "job_type_id",
+            "location",
             "min_rating",
             "verification_status",
             "availability",
@@ -188,9 +295,8 @@ describe("Feature: gig-worker-platform, Property 7: Marketplace Filter Query Con
           // Count expected keys
           let expectedKeyCount = 2; // page and limit are always present
           if (query) expectedKeyCount++;
-          if (filters.category) expectedKeyCount++;
-          if (filters.location?.city) expectedKeyCount++;
-          if (filters.location?.state) expectedKeyCount++;
+          if (filters.category) expectedKeyCount++; // maps to job_type_id
+          if (filters.location?.city || filters.location?.state) expectedKeyCount++; // single location param
           if (filters.minRating !== undefined) expectedKeyCount++;
           if (filters.verificationStatus) expectedKeyCount++;
           if (filters.availability) expectedKeyCount++;
@@ -252,12 +358,12 @@ describe("Feature: gig-worker-platform, Property 7: Marketplace Filter Query Con
 
           const params = buildQueryParams(query, filters, page, limit);
 
-          // All 12 keys should be present
-          expect(Object.keys(params).length).toBe(12);
+          // 11 keys: query, job_type_id, location, min_rating, verification_status,
+          // availability, max_hourly_rate, sort_by, sort_order, page, limit
+          expect(Object.keys(params).length).toBe(11);
           expect(params.query).toBe(query);
-          expect(params.category).toBe(category);
-          expect(params.city).toBe(city);
-          expect(params.state).toBe(state);
+          expect(params.job_type_id).toBe(category);
+          expect(params).toHaveProperty("location");
           expect(params.min_rating).toBe(String(minRating));
           expect(params.verification_status).toBe(verificationStatus);
           expect(params.availability).toBe(availability);

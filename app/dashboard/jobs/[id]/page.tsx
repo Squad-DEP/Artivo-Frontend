@@ -21,11 +21,14 @@ import { StageCompletionDialog } from "@/components/jobs/StageCompletionDialog";
 import { JobApplicationCard } from "@/components/jobs/JobApplicationCard";
 import { JobApplicationForm } from "@/components/jobs/JobApplicationForm";
 import { ReviewDialog } from "@/components/jobs/ReviewDialog";
+import { JobCompletionPanel } from "@/components/jobs/JobCompletionPanel";
+import { RatingDialog } from "@/components/jobs/RatingDialog";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { useJobStore } from "@/store/jobStore";
 import { useReputationStore } from "@/store/reputationStore";
 import { useAuthStore } from "@/store/authStore";
 import { JOB_STATUS } from "@/lib/constants/user-types";
+import { deriveCompletionStatus } from "@/lib/utils/job-status";
 import type { JobStage } from "@/api/types/job";
 
 /**
@@ -70,6 +73,7 @@ export default function JobDetailPage() {
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
   const [paymentStage, setPaymentStage] = React.useState<JobStage | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = React.useState(false);
+  const [ratingDialogOpen, setRatingDialogOpen] = React.useState(false);
 
   // Fetch job data on mount
   React.useEffect(() => {
@@ -83,6 +87,24 @@ export default function JobDetailPage() {
   const isJobCompleted = currentJob?.status === "completed";
   const allStagesPaid = currentJob?.stages?.every((s) => s.status === "paid") ?? false;
   const shouldPromptReview = isJobCompleted || allStagesPaid;
+
+  // Mutual completion status derivation
+  // The backend job status can be "worker_completed", "customer_completed", or "completed"
+  const customerCompleted =
+    currentJob?.status === "customer_completed" ||
+    currentJob?.status === "completed";
+  const workerCompleted =
+    currentJob?.status === "worker_completed" ||
+    currentJob?.status === "completed";
+  const completionStatus = deriveCompletionStatus(customerCompleted, workerCompleted);
+  const isMutuallyCompleted = completionStatus === "completed";
+
+  // Show completion panel when job is in progress or partially completed
+  const showCompletionPanel =
+    currentJob?.status === "in_progress" ||
+    currentJob?.status === "worker_completed" ||
+    currentJob?.status === "customer_completed" ||
+    currentJob?.status === "completed";
 
   // Determine if the current worker has already applied
   const hasWorkerApplied = isWorker && applications.some(
@@ -172,6 +194,17 @@ export default function JobDetailPage() {
   const handleReviewSuccess = () => {
     setReviewDialogOpen(false);
     if (jobId) fetchJobById(jobId);
+  };
+
+  const handleCompletionChange = () => {
+    // Refresh job data to get updated completion status
+    if (jobId) fetchJobById(jobId);
+  };
+
+  const handleRatingSubmitted = () => {
+    // Refresh job data after rating
+    if (jobId) fetchJobById(jobId);
+    fetchReputation();
   };
 
   const handleApplicationAccepted = () => {
@@ -325,6 +358,8 @@ export default function JobDetailPage() {
         currentJob.stages.length > 0 &&
         (currentJob.status === "in_progress" ||
           currentJob.status === "completed" ||
+          currentJob.status === "worker_completed" ||
+          currentJob.status === "customer_completed" ||
           currentJob.status === "disputed") && (
           <section className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-base font-semibold text-foreground mb-4">
@@ -340,6 +375,31 @@ export default function JobDetailPage() {
             />
           </section>
         )}
+
+      {/* Mutual Job Completion Panel — visible when job is in progress or partially/fully completed */}
+      {showCompletionPanel && (
+        <section>
+          <JobCompletionPanel
+            jobId={currentJob.id}
+            role={isCustomer ? "customer" : "worker"}
+            customerCompleted={customerCompleted}
+            workerCompleted={workerCompleted}
+            onCompletionChange={handleCompletionChange}
+          />
+          {/* Rate button — enabled only after mutual completion */}
+          {isMutuallyCompleted && (
+            <div className="mt-3">
+              <Button
+                onClick={() => setRatingDialogOpen(true)}
+                className="w-full"
+                variant="outline"
+              >
+                Rate this Job
+              </Button>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Applications Section — visible to customer */}
       {isCustomer && applications.length > 0 && (
@@ -566,6 +626,15 @@ export default function JobDetailPage() {
             : currentJob.customer_name
         }
         onSuccess={handleReviewSuccess}
+      />
+
+      <RatingDialog
+        isOpen={ratingDialogOpen}
+        onClose={() => setRatingDialogOpen(false)}
+        jobId={currentJob.id}
+        jobStatus={completionStatus}
+        role={isCustomer ? "customer" : "worker"}
+        onRatingSubmitted={handleRatingSubmitted}
       />
     </div>
   );

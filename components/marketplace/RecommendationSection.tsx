@@ -35,7 +35,7 @@ export function RecommendationSection({
         <div className="flex items-center gap-2 mb-4">
           <Loader2 className="w-5 h-5 text-[var(--orange)] animate-spin" />
           <span className="text-sm text-gray-500">
-            Finding the best artisans for you...
+            Loading recommendations...
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -98,8 +98,14 @@ export function RecommendationSection({
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Recommended for You</h2>
-            <p className="text-xs text-gray-500">Handpicked based on quality, reliability & reviews</p>
+            <h2 className="text-lg font-bold text-gray-900">
+              {isNewCustomer ? "Top Rated Workers" : "Recommended for You"}
+            </h2>
+            <p className="text-xs text-gray-500">
+              {isNewCustomer
+                ? "— sorted by trust score"
+                : "Handpicked based on quality, reliability & reviews"}
+            </p>
           </div>
         </div>
         <Link

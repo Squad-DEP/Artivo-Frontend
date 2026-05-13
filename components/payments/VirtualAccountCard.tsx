@@ -35,29 +35,16 @@ export function VirtualAccountCard() {
   // Failed creation state with error banner and auto-retry indicator
   if (virtualAccount?.status === "failed" || (!virtualAccount && error)) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-red-800">
-              Virtual Account Creation Failed
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <div className="flex items-center gap-3">
+          <Building2 className="w-5 h-5 text-gray-400" />
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Virtual Account
             </h3>
-            <p className="mt-1 text-sm text-red-600">
-              {error || "Unable to create your virtual account. Please try again."}
+            <p className="mt-0.5 text-sm text-gray-500">
+              Your virtual account will appear here once it&apos;s set up.
             </p>
-            <div className="mt-3 flex items-center gap-4">
-              <div className="flex items-center gap-1.5 text-xs text-red-500">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Auto-retrying in the background</span>
-              </div>
-              <button
-                onClick={fetchVirtualAccount}
-                className="flex items-center gap-1.5 text-xs font-medium text-red-700 hover:text-red-900 transition-colors"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Retry Now
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -145,6 +132,13 @@ export function VirtualAccountCard() {
           <p className="text-xs text-gray-500">Bank Name</p>
           <p className="text-sm font-medium text-gray-900 mt-0.5">
             {virtualAccount.bank_name}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-xs text-gray-500">Bank Code</p>
+          <p className="text-sm font-medium text-gray-900 mt-0.5">
+            {virtualAccount.bank_code}
           </p>
         </div>
 

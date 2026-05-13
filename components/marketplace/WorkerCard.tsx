@@ -23,8 +23,6 @@ export function WorkerCard({ worker, badge, variant = "default" }: WorkerCardPro
 
   const isFeatured = variant === "featured";
 
-  console.log(worker)
-
   return (
     <Link
       href={profileUrl}
@@ -117,10 +115,17 @@ export function WorkerCard({ worker, badge, variant = "default" }: WorkerCardPro
           </div>
         </div>
 
-        {/* Tagline — fixed single line with ellipsis */}
-        <p className="text-xs text-gray-600 mb-3 truncate italic h-4">
-          {worker.tagline || `${primarySkill} professional`}
-        </p>
+        {/* Tagline / AI Match Explanation — fixed single line with ellipsis */}
+        {worker.tagline ? (
+          <p className="text-xs text-gray-600 mb-3 truncate h-4 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-[var(--orange)] flex-shrink-0" />
+            <span className="italic truncate">{worker.tagline}</span>
+          </p>
+        ) : (
+          <p className="text-xs text-gray-600 mb-3 truncate italic h-4">
+            {`${primarySkill} professional`}
+          </p>
+        )}
 
         {/* Stats Row */}
         <div className="flex items-center gap-2 mb-3">

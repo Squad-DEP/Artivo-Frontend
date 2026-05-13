@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getApiBaseUrl } from "@/api/api-service";
 import type { WorkerProfile } from "@/api/types/worker";
+import type { PublicProfileResponse } from "@/api/types/marketplace-api";
 import type { Review } from "@/api/types/reputation";
 import { BRAND } from "@/lib/constants";
 import { ArtisanProfileContent } from "./_components/ArtisanProfileContent";
@@ -10,6 +11,13 @@ interface PageProps {
   params: Promise<{ username: string }>;
 }
 
+/**
+ * Fetches a worker's public profile from GET /profile/:slug.
+ * This endpoint is accessible without authentication.
+ * Returns null if the profile is not found (404).
+ *
+ * Validates: Requirements 13.1, 13.4, 13.5
+ */
 async function fetchWorkerByUsername(
   username: string
 ): Promise<WorkerProfile | null> {
@@ -22,7 +30,7 @@ async function fetchWorkerByUsername(
 
   try {
     const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/v1/workers/username/${username}`, {
+    const res = await fetch(`${baseUrl}/v1/profile/${username}`, {
       next: { revalidate: 60 },
     });
 
@@ -34,7 +42,36 @@ async function fetchWorkerByUsername(
       return null;
     }
 
-    return await res.json();
+    const data: PublicProfileResponse = await res.json();
+    const profileWorker = data.worker;
+
+    // Map the public profile response to the WorkerProfile type
+    // The public profile endpoint returns a subset of fields
+    const workerProfile: WorkerProfile = {
+      id: profileWorker.id,
+      user_id: profileWorker.id,
+      display_name: profileWorker.full_name,
+      username,
+      bio: profileWorker.bio,
+      skills: profileWorker.skills.map((skillName, idx) => ({
+        id: `skill-${idx}`,
+        name: skillName,
+      })),
+      categories: [],
+      location: { city: "", state: "", country: "" },
+      portfolio: [],
+      trust_score: profileWorker.credit_score,
+      completed_jobs: profileWorker.total_jobs,
+      completion_rate: profileWorker.completion_rate,
+      rating: profileWorker.average_rating,
+      reviews_count: 0,
+      verification_status: "verified",
+      availability: "available",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    return workerProfile;
   } catch {
     return null;
   }
@@ -67,6 +104,12 @@ async function fetchWorkerReviews(workerId: string): Promise<Review[]> {
   }
 }
 
+/**
+ * Generates OpenGraph and Twitter meta tags for social sharing.
+ * Includes the worker's name, bio, skills, and reputation metrics.
+ *
+ * Validates: Requirements 13.3
+ */
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -80,18 +123,20 @@ export async function generateMetadata({
     };
   }
 
-  const primaryCategory =
-    worker.categories.length > 0 ? worker.categories[0].name : "Artisan";
-  const title = `${worker.display_name} - ${primaryCategory} | ${BRAND.name}`;
-  const description =
-    worker.bio.length > 160 ? `${worker.bio.slice(0, 157)}...` : worker.bio;
+  const skillsList = worker.skills.map((s) => s.name).join(", ");
+  const title = `${worker.display_name} - Artisan on ${BRAND.name}`;
+  const description = worker.bio.length > 160
+    ? `${worker.bio.slice(0, 157)}...`
+    : worker.bio;
+  const completionRate = worker.completion_rate ?? 0;
+  const extendedDescription = `${description} | Skills: ${skillsList} | Rating: ${worker.rating}/5 | ${worker.completed_jobs} jobs completed | Trust Score: ${worker.trust_score}/100 | Completion Rate: ${completionRate}%`;
 
   return {
     title,
-    description,
+    description: extendedDescription,
     openGraph: {
       title,
-      description,
+      description: extendedDescription,
       type: "profile",
       url: `${BRAND.website}/artisan/${username}`,
       siteName: BRAND.name,
@@ -99,7 +144,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary",
       title,
-      description,
+      description: extendedDescription,
     },
   };
 }

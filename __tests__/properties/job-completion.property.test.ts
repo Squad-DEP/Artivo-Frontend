@@ -2,6 +2,65 @@ import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
 import type { Job, JobStage } from "@/api/types/job";
 import type { JobStatus } from "@/lib/constants/user-types";
+import { deriveCompletionStatus } from "@/lib/utils/job-status";
+
+// ─── Property 5: Mutual completion status derivation ─────────────────────────
+
+/**
+ * Property 5: Mutual completion status derivation
+ *
+ * For any pair (customerCompleted, workerCompleted), `deriveCompletionStatus` returns
+ * "completed" if both true, "waiting" if exactly one true, "in_progress" if neither true.
+ *
+ * Feature: marketplace-integration, Property 5: Mutual completion status derivation
+ * Validates: Requirements 4.3, 4.4
+ */
+describe("Feature: marketplace-integration, Property 5: Mutual completion status derivation", () => {
+  it("returns 'completed' when both customerCompleted and workerCompleted are true", () => {
+    const result = deriveCompletionStatus(true, true);
+    expect(result).toBe("completed");
+  });
+
+  it("returns 'waiting' when exactly one party has completed", () => {
+    fc.assert(
+      fc.property(
+        fc.boolean(),
+        (flag) => {
+          // Exactly one true: either (true, false) or (false, true)
+          const result1 = deriveCompletionStatus(flag, !flag);
+          expect(result1).toBe("waiting");
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it("returns 'in_progress' when neither party has completed", () => {
+    const result = deriveCompletionStatus(false, false);
+    expect(result).toBe("in_progress");
+  });
+
+  it("for any pair of booleans, returns the correct status", () => {
+    fc.assert(
+      fc.property(
+        fc.boolean(),
+        fc.boolean(),
+        (customerCompleted, workerCompleted) => {
+          const result = deriveCompletionStatus(customerCompleted, workerCompleted);
+
+          if (customerCompleted && workerCompleted) {
+            expect(result).toBe("completed");
+          } else if (customerCompleted || workerCompleted) {
+            expect(result).toBe("waiting");
+          } else {
+            expect(result).toBe("in_progress");
+          }
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
 
 // ─── Pure Logic Under Test ───────────────────────────────────────────────────
 

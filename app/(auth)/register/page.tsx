@@ -8,13 +8,24 @@ import { useState } from "react";
 import { z } from "zod";
 import type { UserType } from "@/lib/constants/user-types";
 
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(
+    /[^A-Za-z0-9]/,
+    "Password must contain at least one special character"
+  );
+
 const formSchema = z
   .object({
     firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    email: z.string().min(5, "Email required").email("Invalid email"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(8, "Confirm password is required"),
+    lastName: z.string().optional(),
+    email: z.string().min(1, "Email is required").email("Invalid email address"),
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirm password is required"),
     role: z.enum(["worker", "customer"], {
       required_error: "Please select a role",
     }),
@@ -70,10 +81,18 @@ export default function AuthRegisterPage() {
       return;
     }
 
-    const success = await signUp(email, password);
+    const success = await signUp(email, password, {
+      firstName,
+      lastName,
+      role: role as string,
+    });
     if (success) {
-      // Redirect to role selection / onboarding profile page
-      router.push("/register/profile");
+      // Route directly to the appropriate onboarding screen based on selected role
+      if (role === "worker") {
+        router.push("/onboarding/worker");
+      } else {
+        router.push("/onboarding/customer");
+      }
     }
   };
 
@@ -168,7 +187,6 @@ export default function AuthRegisterPage() {
                 id="lastName"
                 type="text"
                 placeholder="Enter last name"
-                required
                 className="block w-full rounded-[19px] mt-2 border bg-accent/50 placeholder:text-foreground/30 px-4 sm:px-6 py-3 sm:py-4 text-[16px] focus:ring-0"
               />
               {formErrors.lastName && (

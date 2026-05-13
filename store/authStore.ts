@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { persist } from "zustand/middleware";
 import type { AuthChangeEvent, Session, Provider } from "@supabase/supabase-js";
 import type { UserType } from "@/lib/constants/user-types";
+import { getApiBaseUrl } from "@/api/api-service";
 
 const IS_MOCK_MODE = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
 
@@ -111,7 +112,7 @@ interface AuthState {
 
   // Methods
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, options?: { firstName?: string; lastName?: string; role?: string }) => Promise<boolean>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
@@ -179,29 +180,36 @@ export const useAuthStore = create<AuthState>()(
         }));
 
         try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+          const baseUrl = getApiBaseUrl();
+          const response = await fetch(`${baseUrl}/v1/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
           });
 
-          if (error) {
+          const data = await response.json();
+
+          if (!response.ok) {
+            const errorMsg = data.msg || data.message || "Invalid credentials";
             set((state) => ({
-              error: error.message,
+              error: errorMsg,
               loading: { ...state.loading, signIn: false },
             }));
             return false;
           }
 
-          if (data.user && data.session) {
+          if (data.accessToken) {
+            // Decode JWT payload to extract user info
+            const payload = JSON.parse(atob(data.accessToken.split(".")[1]));
             const user: User = {
-              id: data.user.id,
-              email: data.user.email!,
-              email_confirmed_at: data.user.email_confirmed_at,
-              created_at: data.user.created_at,
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              user_metadata: data.user.user_metadata,
-              app_metadata: data.user.app_metadata,
+              id: payload.id || payload.sub,
+              email: payload.email || email,
+              access_token: data.accessToken,
+              user_metadata: {
+                full_name: payload.fullName || payload.name,
+                user_type: payload.role as UserType,
+              },
+              user_type: payload.role as UserType,
             };
 
             set((state) => ({
@@ -209,6 +217,10 @@ export const useAuthStore = create<AuthState>()(
               loading: { ...state.loading, signIn: false },
               error: null,
             }));
+
+            // Fetch full user profile from backend to get role and other details
+            await get().fetchUser();
+
             return true;
           }
 
@@ -225,50 +237,59 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signUp: async (email: string, password: string): Promise<boolean> => {
+      signUp: async (email: string, password: string, options?: { firstName?: string; lastName?: string; role?: string }): Promise<boolean> => {
         set((state) => ({
           loading: { ...state.loading, signUp: true },
           error: null,
         }));
 
         try {
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                onboarding_completed: false,
-              },
-            },
+          const baseUrl = getApiBaseUrl();
+          const response = await fetch(`${baseUrl}/v1/auth/sign-up`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              password,
+              firstName: options?.firstName || "",
+              lastName: options?.lastName || "",
+              role: options?.role || "customer",
+              tos: true,
+            }),
           });
 
-          if (error) {
+          const data = await response.json();
+
+          if (!response.ok) {
+            // Handle validation errors from express-validator
+            let errorMsg = "Registration failed";
+            if (data.errors) {
+              const firstError = Object.values(data.errors)[0] as any;
+              errorMsg = firstError?.msg || errorMsg;
+            } else if (data.msg || data.message) {
+              errorMsg = data.msg || data.message;
+            }
             set((state) => ({
-              error: error.message,
+              error: errorMsg,
               loading: { ...state.loading, signUp: false },
             }));
             return false;
           }
 
-          // Check if user needs email confirmation
-          if (data.user && !data.user.email_confirmed_at) {
-            set((state) => ({
-              loading: { ...state.loading, signUp: false },
-              error: null,
-            }));
-            return true; // Success but pending email confirmation
-          }
-
-          if (data.user && data.session) {
+          if (data.accessToken) {
+            // Decode JWT payload to extract user info
+            const payload = JSON.parse(atob(data.accessToken.split(".")[1]));
             const user: User = {
-              id: data.user.id,
-              email: data.user.email!,
-              email_confirmed_at: data.user.email_confirmed_at,
-              created_at: data.user.created_at,
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              user_metadata: data.user.user_metadata,
-              app_metadata: data.user.app_metadata,
+              id: payload.id || payload.sub,
+              email: payload.email || email,
+              access_token: data.accessToken,
+              user_metadata: {
+                full_name: `${options?.firstName || ""} ${options?.lastName || ""}`.trim(),
+                user_type: (options?.role || payload.role) as UserType,
+                onboarding_completed: false,
+              },
+              user_type: (options?.role || payload.role) as UserType,
+              onboarding_completed: false,
             };
 
             set((state) => ({
@@ -282,7 +303,7 @@ export const useAuthStore = create<AuthState>()(
           set((state) => ({
             loading: { ...state.loading, signUp: false },
           }));
-          return false;
+          return true; // Registration succeeded even without immediate token
         } catch (error) {
           set((state) => ({
             error: error instanceof Error ? error.message : "An error occurred",
@@ -332,41 +353,51 @@ export const useAuthStore = create<AuthState>()(
         }));
 
         try {
-          const { data, error } = await supabase.auth.getUser();
-
-          if (error) {
+          const currentUser = get().user;
+          if (!currentUser?.access_token) {
             set((state) => ({
-              error: error.message,
+              user: null,
               loading: { ...state.loading, fetchUser: false },
             }));
             return;
           }
 
-          if (data.user) {
-            const { data: sessionData } = await supabase.auth.getSession();
+          const baseUrl = getApiBaseUrl();
+          const response = await fetch(`${baseUrl}/v1/user`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${currentUser.access_token}`,
+            },
+          });
 
-            const user: User = {
-              id: data.user.id,
-              email: data.user.email!,
-              email_confirmed_at: data.user.email_confirmed_at,
-              created_at: data.user.created_at,
-              access_token: sessionData.session?.access_token,
-              refresh_token: sessionData.session?.refresh_token,
-              user_metadata: data.user.user_metadata,
-              app_metadata: data.user.app_metadata,
-            };
-
+          if (!response.ok) {
             set((state) => ({
-              user,
-              error: null,
+              error: "Failed to fetch user",
               loading: { ...state.loading, fetchUser: false },
             }));
-          } else {
-            set((state) => ({
-              user: null,
-              loading: { ...state.loading, fetchUser: false },
-            }));
+            return;
           }
+
+          const data = await response.json();
+
+          const user: User = {
+            ...currentUser,
+            id: data.id,
+            email: data.email,
+            user_type: data.role as UserType,
+            user_metadata: {
+              ...currentUser.user_metadata,
+              full_name: data.fullName || data.full_name,
+              user_type: data.role as UserType,
+            },
+          };
+
+          set((state) => ({
+            user,
+            error: null,
+            loading: { ...state.loading, fetchUser: false },
+          }));
         } catch (error) {
           set((state) => ({
             error: error instanceof Error ? error.message : "An error occurred",

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as fc from "fast-check";
 import {
   validateDisplayName,
@@ -16,6 +16,25 @@ import {
   validateStageCount,
   validateProposedAmount,
 } from "@/lib/validators";
+import { useOnboardingStore } from "@/store/onboardingStore";
+import type { VoiceOnboardResponse } from "@/api/types/marketplace-api";
+
+// Mock the API service
+vi.mock("@/api/api-service", () => ({
+  apiService: {
+    post: vi.fn(),
+    get: vi.fn(),
+  },
+}));
+
+// Mock zustand persist middleware to use in-memory storage
+vi.mock("zustand/middleware", () => ({
+  persist: (config: any) => config,
+}));
+
+import { apiService } from "@/api/api-service";
+
+const mockedApiService = vi.mocked(apiService);
 
 /**
  * Property 1: Onboarding Input Validation
@@ -851,5 +870,158 @@ describe("Feature: gig-worker-platform, Property 16: Job Creation and Applicatio
         { numRuns: 100 }
       );
     });
+  });
+});
+
+
+// Feature: marketplace-integration, Property 7: Voice onboard response fields are all surfaced in confirmation UI
+// Feature: marketplace-integration, Property 8: Field correction is local-only
+
+/**
+ * Property 7: Voice onboard response fields are all surfaced in confirmation UI
+ *
+ * For any valid VoiceOnboardResponse.data object containing fullName, skills, bio,
+ * experience, avgPay, and location, the confirmation UI state SHALL contain an entry
+ * for each of these 6 fields with the corresponding value from the response.
+ *
+ * Validates: Requirements 6.3
+ */
+describe("Feature: marketplace-integration, Property 7: Voice onboard response fields are all surfaced in confirmation UI", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useOnboardingStore.getState().reset();
+  });
+
+  // Generator for a valid VoiceOnboardResponse.data object
+  const voiceOnboardDataArb = fc.record({
+    fullName: fc.string({ minLength: 1, maxLength: 100 }),
+    skills: fc.array(fc.string({ minLength: 1, maxLength: 50 }), { minLength: 1, maxLength: 10 }),
+    bio: fc.string({ minLength: 1, maxLength: 500 }),
+    experience: fc.string({ minLength: 1, maxLength: 200 }),
+    avgPay: fc.string({ minLength: 1, maxLength: 50 }),
+    location: fc.string({ minLength: 1, maxLength: 100 }),
+  });
+
+  it("all 6 fields from VoiceOnboardResponse.data appear in confirmationFields with corresponding values", async () => {
+    await fc.assert(
+      fc.asyncProperty(voiceOnboardDataArb, async (data) => {
+        // Reset store before each iteration
+        useOnboardingStore.getState().reset();
+        vi.clearAllMocks();
+
+        // Mock the API to return a valid VoiceOnboardResponse
+        const mockResponse: VoiceOnboardResponse = {
+          message: true,
+          data,
+        };
+        mockedApiService.post.mockResolvedValueOnce(mockResponse);
+
+        // Call submitVoice with arbitrary audio data
+        await useOnboardingStore.getState().submitVoice("base64audiodata");
+
+        const state = useOnboardingStore.getState();
+
+        // Verify all 6 fields are present in confirmationFields
+        expect(state.confirmationFields).toHaveProperty("fullName");
+        expect(state.confirmationFields).toHaveProperty("skills");
+        expect(state.confirmationFields).toHaveProperty("bio");
+        expect(state.confirmationFields).toHaveProperty("experience");
+        expect(state.confirmationFields).toHaveProperty("avgPay");
+        expect(state.confirmationFields).toHaveProperty("location");
+
+        // Verify values match the response
+        expect(state.confirmationFields.fullName).toBe(data.fullName);
+        // Skills are joined as comma-separated string
+        expect(state.confirmationFields.skills).toBe(data.skills.join(", "));
+        expect(state.confirmationFields.bio).toBe(data.bio);
+        expect(state.confirmationFields.experience).toBe(data.experience);
+        expect(state.confirmationFields.avgPay).toBe(data.avgPay);
+        expect(state.confirmationFields.location).toBe(data.location);
+      }),
+      { numRuns: 100 }
+    );
+  });
+});
+
+/**
+ * Property 8: Field correction is local-only
+ *
+ * For any field name in the confirmation UI and any new string value, editing that field
+ * SHALL update the local onboarding state to reflect the new value AND SHALL NOT trigger
+ * any API call (voice or text endpoint).
+ *
+ * Validates: Requirements 7.2
+ */
+describe("Feature: marketplace-integration, Property 8: Field correction is local-only", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useOnboardingStore.getState().reset();
+  });
+
+  // Generator for a field name from the confirmation UI
+  const fieldNameArb = fc.constantFrom("fullName", "skills", "bio", "experience", "avgPay", "location");
+
+  // Generator for a new string value
+  const newValueArb = fc.string({ minLength: 1, maxLength: 200 });
+
+  it("correctField updates the local state with the new value", () => {
+    fc.assert(
+      fc.property(fieldNameArb, newValueArb, (fieldName, newValue) => {
+        // Reset store and mocks
+        useOnboardingStore.getState().reset();
+        vi.clearAllMocks();
+
+        // Set up initial confirmationFields state
+        useOnboardingStore.setState({
+          confirmationFields: {
+            fullName: "Original Name",
+            skills: "Plumbing, Electrical",
+            bio: "Original bio",
+            experience: "5 years",
+            avgPay: "5000",
+            location: "Lagos",
+          },
+        });
+
+        // Call correctField
+        useOnboardingStore.getState().correctField(fieldName, newValue);
+
+        const state = useOnboardingStore.getState();
+
+        // The field should be updated to the new value
+        expect(state.confirmationFields[fieldName]).toBe(newValue);
+      }),
+      { numRuns: 100 }
+    );
+  });
+
+  it("correctField does NOT trigger any API call", () => {
+    fc.assert(
+      fc.property(fieldNameArb, newValueArb, (fieldName, newValue) => {
+        // Reset store and mocks
+        useOnboardingStore.getState().reset();
+        vi.clearAllMocks();
+
+        // Set up initial confirmationFields state
+        useOnboardingStore.setState({
+          confirmationFields: {
+            fullName: "Original Name",
+            skills: "Plumbing, Electrical",
+            bio: "Original bio",
+            experience: "5 years",
+            avgPay: "5000",
+            location: "Lagos",
+          },
+        });
+
+        // Call correctField
+        useOnboardingStore.getState().correctField(fieldName, newValue);
+
+        // Verify NO API calls were made
+        expect(mockedApiService.post).not.toHaveBeenCalled();
+        expect(mockedApiService.get).not.toHaveBeenCalled();
+      }),
+      { numRuns: 100 }
+    );
   });
 });

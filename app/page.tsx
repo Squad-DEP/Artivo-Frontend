@@ -42,7 +42,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen w-full max-w-[1450px] overflow-x-hidden mx-auto gap-16 font-[family-name:var(--font-geist-sans)]">
-      {/* <Header /> */}
+      <Header />
 
       {/* Hero */}
       <section
