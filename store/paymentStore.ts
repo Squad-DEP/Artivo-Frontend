@@ -97,12 +97,12 @@ export const usePaymentStore = create<PaymentState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const data = await apiService.get<VirtualAccountResponse>("/user/virtual-account");
+      const data = await apiService.get<VirtualAccountResponse>("/account/virtual-account");
       const va = data.virtual_account;
       set({
         virtualAccount: {
-          account_number: va.virtual_account_number,
-          account_name: va.virtual_account_name,
+          account_number: va.account_number,
+          account_name: va.account_name,
           bank_name: va.bank_name,
           bank_code: va.bank_code,
           status: "active",
@@ -112,10 +112,7 @@ export const usePaymentStore = create<PaymentState>()((set, get) => ({
       });
     } catch (error) {
       set({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch virtual account",
+        error: error instanceof Error ? error.message : "Failed to fetch virtual account",
         isLoading: false,
       });
     }

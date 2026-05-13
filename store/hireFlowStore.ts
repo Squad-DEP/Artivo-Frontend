@@ -1,13 +1,13 @@
 import { create } from "zustand";
-import { apiService, getApiBaseUrl } from "@/api/api-service";
+import { getApiBaseUrl } from "@/api/api-service";
 import { useAuthStore } from "@/store/authStore";
 import type {
   RequestJobPayload,
   RequestJobResponse,
   HirePayload,
   HireResponse,
-  PaymentLogPayload,
-  PaymentLogResponse,
+  VerifyPaymentPayload,
+  VerifyPaymentResponse,
 } from "@/api/types/marketplace-api";
 import { validateJobRequest } from "@/lib/utils/hire-validation";
 import { nairaToKobo } from "@/lib/utils/payment";
@@ -17,7 +17,7 @@ export type HireFlowStep =
   | "requesting"
   | "hiring"
   | "paying"
-  | "logging"
+  | "verifying"
   | "complete";
 
 export interface CreateJobRequestPayload {
@@ -32,9 +32,8 @@ export interface HireFlowState {
   // State
   jobRequest: { id: string; status: string } | null;
   job: { id: string; status: string } | null;
-  paymentLog: {
-    id: string;
-    squad_transaction_id: string;
+  paymentResult: {
+    transactionReference: string;
     amount: number;
     status: string;
   } | null;
@@ -45,25 +44,14 @@ export interface HireFlowState {
 
   // Actions
   createJobRequest: (data: CreateJobRequestPayload) => Promise<boolean>;
-  hireWorker: (
-    jobRequestId: string,
-    workerId: string,
-    amount: number
-  ) => Promise<boolean>;
+  hireWorker: (jobRequestId: string, workerId: string, amount: number) => Promise<boolean>;
   openSquadModal: (email: string, amount: number, jobId: string) => void;
-  logPayment: (
-    jobId: string,
-    transactionId: string,
-    amount: number
-  ) => Promise<boolean>;
+  verifyPayment: (jobId: string, transactionReference: string, amount: number) => Promise<boolean>;
   reset: () => void;
 }
 
 /**
- * Attempts a POST request and handles 422 validation errors by parsing
- * field-level error messages from the response body.
- *
- * Returns { data, validationErrors } where data is null on failure.
+ * POST a request and handle 422 validation errors by extracting field-level messages.
  */
 async function postWithValidation<T>(
   path: string,
@@ -95,43 +83,24 @@ async function postWithValidation<T>(
     try {
       const errorData = await response.json();
       const validationErrors: Record<string, string> = {};
-
-      if (Array.isArray(errorData.errors)) {
-        for (const err of errorData.errors) {
-          if (err.field && err.message) {
-            validationErrors[err.field] = err.message;
-          }
+      // Backend returns { errors: { field: { msg } } } from express-validator
+      if (errorData.errors && typeof errorData.errors === "object") {
+        for (const [field, errObj] of Object.entries(errorData.errors)) {
+          const msg = (errObj as { msg?: string })?.msg;
+          if (msg) validationErrors[field] = msg;
         }
       }
-
-      return {
-        data: null,
-        validationErrors,
-        errorMessage: errorData.msg || "Validation error",
-      };
+      return { data: null, validationErrors, errorMessage: errorData.msg || "Validation error" };
     } catch {
-      return {
-        data: null,
-        validationErrors: {},
-        errorMessage: "Validation error",
-      };
+      return { data: null, validationErrors: {}, errorMessage: "Validation error" };
     }
   }
 
-  // Handle other error statuses
-  let errorMessage = `Request failed with status ${response.status}`;
+  let errorMessage = `Request failed (${response.status})`;
   try {
     const errorData = await response.json();
-    if (errorData.msg) {
-      errorMessage = errorData.msg;
-    } else if (errorData.message) {
-      errorMessage = errorData.message;
-    } else if (errorData.error) {
-      errorMessage = errorData.error;
-    }
-  } catch {
-    // Use default error message
-  }
+    errorMessage = errorData.msg || errorData.message || errorData.error || errorMessage;
+  } catch { /* use default */ }
 
   return { data: null, validationErrors: {}, errorMessage };
 }
@@ -139,7 +108,7 @@ async function postWithValidation<T>(
 const initialState = {
   jobRequest: null as HireFlowState["jobRequest"],
   job: null as HireFlowState["job"],
-  paymentLog: null as HireFlowState["paymentLog"],
+  paymentResult: null as HireFlowState["paymentResult"],
   isLoading: false,
   error: null as string | null,
   validationErrors: {} as Record<string, string>,
@@ -150,19 +119,13 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
   ...initialState,
 
   createJobRequest: async (data: CreateJobRequestPayload) => {
-    // Client-side validation first
     const validation = validateJobRequest(data);
     if (!validation.valid) {
       set({ validationErrors: validation.errors, error: "Validation failed" });
       return false;
     }
 
-    set({
-      isLoading: true,
-      error: null,
-      validationErrors: {},
-      step: "requesting",
-    });
+    set({ isLoading: true, error: null, validationErrors: {}, step: "requesting" });
 
     try {
       const payload: RequestJobPayload = {
@@ -173,89 +136,41 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
         budget: data.budget,
       };
 
-      const result = await postWithValidation<RequestJobResponse>(
-        "/customer/request-job",
-        payload
-      );
+      const result = await postWithValidation<RequestJobResponse>("/customer/request-job", payload);
 
       if (result.data) {
         set({
-          jobRequest: {
-            id: result.data.job_request.id,
-            status: result.data.job_request.status,
-          },
+          jobRequest: { id: result.data.job_request.id, status: result.data.job_request.status },
           isLoading: false,
           step: "hiring",
         });
         return true;
       }
 
-      // Handle validation or other errors
-      set({
-        error: result.errorMessage,
-        validationErrors: result.validationErrors,
-        isLoading: false,
-        step: "idle",
-      });
+      set({ error: result.errorMessage, validationErrors: result.validationErrors, isLoading: false, step: "idle" });
       return false;
     } catch (error) {
-      set({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create job request",
-        isLoading: false,
-        step: "idle",
-      });
+      set({ error: error instanceof Error ? error.message : "Failed to create job request", isLoading: false, step: "idle" });
       return false;
     }
   },
 
-  hireWorker: async (
-    jobRequestId: string,
-    workerId: string,
-    amount: number
-  ) => {
+  hireWorker: async (jobRequestId: string, workerId: string, amount: number) => {
     set({ isLoading: true, error: null, validationErrors: {}, step: "hiring" });
 
     try {
-      const payload: HirePayload = {
-        job_request_id: jobRequestId,
-        worker_id: workerId,
-        amount,
-      };
-
-      const result = await postWithValidation<HireResponse>(
-        "/customer/hire",
-        payload
-      );
+      const payload: HirePayload = { job_request_id: jobRequestId, worker_id: workerId, amount };
+      const result = await postWithValidation<HireResponse>("/customer/hire", payload);
 
       if (result.data) {
-        set({
-          job: {
-            id: result.data.job.id,
-            status: result.data.job.status,
-          },
-          isLoading: false,
-          step: "paying",
-        });
+        set({ job: { id: result.data.job.id, status: result.data.job.status }, isLoading: false, step: "paying" });
         return true;
       }
 
-      set({
-        error: result.errorMessage,
-        validationErrors: result.validationErrors,
-        isLoading: false,
-        step: "hiring",
-      });
+      set({ error: result.errorMessage, validationErrors: result.validationErrors, isLoading: false, step: "hiring" });
       return false;
     } catch (error) {
-      set({
-        error:
-          error instanceof Error ? error.message : "Failed to hire worker",
-        isLoading: false,
-        step: "hiring",
-      });
+      set({ error: error instanceof Error ? error.message : "Failed to hire worker", isLoading: false, step: "hiring" });
       return false;
     }
   },
@@ -265,84 +180,67 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
 
     const koboAmount = nairaToKobo(amount);
 
-    // Dynamically load and open Squad payment modal
     const openModal = () => {
-      const SquadPay = (window as unknown as Record<string, unknown>)
-        .SquadPay as
+      const SquadPay = (window as unknown as Record<string, unknown>).SquadPay as
         | (new (config: Record<string, unknown>) => { open: () => void })
         | undefined;
 
       if (!SquadPay) {
-        set({ error: "Payment SDK not available", step: "hiring" });
+        set({ error: "Payment SDK not available. Please refresh and try again.", step: "paying" });
         return;
       }
 
       const squad = new SquadPay({
         onClose: () => {
-          // User closed modal without completing payment
-          const currentStep = get().step;
-          if (currentStep === "paying") {
-            set({ step: "hiring" });
-          }
+          // User dismissed modal without paying — stay on paying step so they can retry
+          if (get().step === "verifying") return; // don't override if already verifying
+          set({ step: "paying" });
         },
-        onLoad: () => {
-          // Modal loaded successfully
+        onLoad: () => { /* modal rendered */ },
+        onSuccess: (response: { transaction_ref?: string }) => {
+          const transactionRef = response?.transaction_ref ?? `txn_${Date.now()}`;
+          get().verifyPayment(jobId, transactionRef, amount);
         },
-        onSuccess: (transactionRef: { transaction_ref?: string }) => {
-          const transactionId =
-            transactionRef?.transaction_ref || `txn_${Date.now()}`;
-          get().logPayment(jobId, transactionId, amount);
-        },
+        key: process.env.NEXT_PUBLIC_SQUAD_PUBLIC_KEY,
         amount: koboAmount,
         email,
         currency_code: "NGN",
+        // Embed job ID in metadata so it's traceable in Squad dashboard
+        metadata: { job_id: jobId },
       });
 
       squad.open();
     };
 
-    // Check if Squad SDK is already loaded
     if ((window as unknown as Record<string, unknown>).SquadPay) {
       openModal();
     } else {
-      // Dynamically load Squad SDK script
       const script = document.createElement("script");
       script.src = "https://checkout.squadco.com/widget/squad.min.js";
       script.async = true;
-      script.onload = () => openModal();
-      script.onerror = () => {
-        set({ error: "Failed to load payment SDK", step: "hiring" });
-      };
+      script.onload = openModal;
+      script.onerror = () => set({ error: "Failed to load payment SDK. Check your connection.", step: "paying" });
       document.head.appendChild(script);
     }
   },
 
-  logPayment: async (
-    jobId: string,
-    transactionId: string,
-    amount: number
-  ) => {
-    set({ isLoading: true, error: null, step: "logging" });
+  /**
+   * Called after Squad's onSuccess fires.
+   * Sends the transaction reference to the backend for server-side verification.
+   * The backend calls Squad's verify endpoint and confirms the amount matches the job.
+   */
+  verifyPayment: async (jobId: string, transactionReference: string, amount: number) => {
+    set({ isLoading: true, error: null, step: "verifying" });
 
     try {
-      const payload: PaymentLogPayload = {
-        job_id: jobId,
-        squad_transaction_id: transactionId,
-        amount,
-        status: "success",
-      };
-
-      const result = await postWithValidation<PaymentLogResponse>(
-        "/customer/payment",
-        payload
-      );
+      const payload: VerifyPaymentPayload = { job_id: jobId, transaction_reference: transactionReference };
+      const result = await postWithValidation<VerifyPaymentResponse>("/customer/verify-payment", payload);
 
       if (result.data) {
         set({
-          paymentLog: {
-            id: result.data.payment_log.id,
-            squad_transaction_id: result.data.payment_log.squad_transaction_id,
-            amount: result.data.payment_log.amount,
+          paymentResult: {
+            transactionReference,
+            amount,
             status: result.data.payment_log.status,
           },
           isLoading: false,
@@ -351,17 +249,16 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
         return true;
       }
 
+      // Verification failed — backend rejected the transaction
       set({
-        error: result.errorMessage,
-        validationErrors: result.validationErrors,
+        error: result.errorMessage ?? "Payment verification failed. Please contact support if funds were deducted.",
         isLoading: false,
-        step: "paying",
+        step: "paying", // let user retry or contact support
       });
       return false;
     } catch (error) {
       set({
-        error:
-          error instanceof Error ? error.message : "Failed to log payment",
+        error: error instanceof Error ? error.message : "Payment verification failed. Please contact support.",
         isLoading: false,
         step: "paying",
       });
@@ -369,7 +266,5 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
     }
   },
 
-  reset: () => {
-    set(initialState);
-  },
+  reset: () => set(initialState),
 }));

@@ -54,22 +54,25 @@ export interface HireResponse {
   };
 }
 
-/** POST /customer/payment request */
-export interface PaymentLogPayload {
+/**
+ * POST /customer/verify-payment
+ * Called after Squad's onSuccess fires with the transaction reference.
+ * The backend verifies the transaction with Squad before logging.
+ */
+export interface VerifyPaymentPayload {
   job_id: string;
-  squad_transaction_id: string;
-  amount: number;
-  status: "success" | "failed";
+  transaction_reference: string;
 }
 
-/** POST /customer/payment response */
-export interface PaymentLogResponse {
+export interface VerifyPaymentResponse {
   payment_log: {
     id: string;
-    squad_transaction_id: string;
+    squadTransactionId: string;
     amount: number;
     status: string;
+    jobId: string;
   };
+  msg: string;
 }
 
 /** POST /customer/rate & POST /worker/rate-customer request */
@@ -129,13 +132,14 @@ export interface AcceptJobPayload {
   proposed_amount: number;
 }
 
-/** GET /user/virtual-account response */
+/** GET /account/virtual-account response */
 export interface VirtualAccountResponse {
   virtual_account: {
-    virtual_account_number: string;
-    virtual_account_name: string;
+    account_number: string;
+    account_name: string;
     bank_name: string;
     bank_code: string;
+    customer_identifier: string;
   };
 }
 

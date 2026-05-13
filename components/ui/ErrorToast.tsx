@@ -2,16 +2,35 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { WifiOff, RefreshCw, X } from "lucide-react";
+import { WifiOff, RefreshCw, X, CheckCircle2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface ErrorToastProps {
+export type ToastVariant = "network" | "error" | "success" | "info";
+
+interface ToastProps {
   message: string;
   visible: boolean;
   onDismiss?: () => void;
   onRetry?: () => void;
   duration?: number;
-  variant?: "network" | "error";
+  variant?: ToastVariant;
+  /** Optional secondary line shown below the message (e.g. transaction ref) */
+  detail?: string;
+}
+
+const variantStyles: Record<ToastVariant, string> = {
+  network: "bg-gray-900 border-gray-700 text-white",
+  error: "bg-red-600 border-red-500 text-white",
+  success: "bg-emerald-600 border-emerald-500 text-white",
+  info: "bg-blue-600 border-blue-500 text-white",
+};
+
+function ToastIcon({ variant }: { variant: ToastVariant }) {
+  if (variant === "success")
+    return <CheckCircle2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />;
+  if (variant === "info")
+    return <Info className="w-4 h-4 flex-shrink-0" aria-hidden="true" />;
+  return <WifiOff className="w-4 h-4 flex-shrink-0 opacity-80" aria-hidden="true" />;
 }
 
 export function ErrorToast({
@@ -21,7 +40,8 @@ export function ErrorToast({
   onRetry,
   duration = 5000,
   variant = "network",
-}: ErrorToastProps) {
+  detail,
+}: ToastProps) {
   useEffect(() => {
     if (visible && duration > 0 && !onRetry) {
       const timer = setTimeout(() => {
@@ -45,15 +65,18 @@ export function ErrorToast({
         >
           <div
             className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border",
-              variant === "network"
-                ? "bg-gray-900 border-gray-700 text-white"
-                : "bg-red-600 border-red-500 text-white"
+              "flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border",
+              variantStyles[variant]
             )}
           >
-            <WifiOff className="w-4 h-4 flex-shrink-0 opacity-80" aria-hidden="true" />
-            <p className="text-sm flex-1">{message}</p>
-            <div className="flex items-center gap-1">
+            <ToastIcon variant={variant} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium leading-snug">{message}</p>
+              {detail && (
+                <p className="text-xs opacity-80 mt-0.5 truncate">{detail}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
               {onRetry && (
                 <button
                   onClick={onRetry}
@@ -80,25 +103,40 @@ export function ErrorToast({
   );
 }
 
-// Hook for managing toast state
+// Backwards-compatible alias
+export { ErrorToast as Toast };
+
+// ---- Hook ----------------------------------------------------------------
+
+interface ToastState {
+  message: string;
+  visible: boolean;
+  onRetry?: () => void;
+  variant?: ToastVariant;
+  detail?: string;
+}
+
 export function useErrorToast() {
-  const [toast, setToast] = useState<{
-    message: string;
-    visible: boolean;
-    onRetry?: () => void;
-    variant?: "network" | "error";
-  }>({ message: "", visible: false });
+  const [toast, setToast] = useState<ToastState>({
+    message: "",
+    visible: false,
+  });
 
   const showToast = useCallback(
     (
       message: string,
-      options?: { onRetry?: () => void; variant?: "network" | "error" }
+      options?: {
+        onRetry?: () => void;
+        variant?: ToastVariant;
+        detail?: string;
+      }
     ) => {
       setToast({
         message,
         visible: true,
         onRetry: options?.onRetry,
         variant: options?.variant,
+        detail: options?.detail,
       });
     },
     []
@@ -110,3 +148,6 @@ export function useErrorToast() {
 
   return { toast, showToast, hideToast };
 }
+
+// Convenience alias
+export { useErrorToast as useToast };
