@@ -2,13 +2,20 @@
 
 import { useAuthStore } from "@/store/authStore";
 import { BusinessCardEditor } from "@/components/profile/BusinessCardEditor";
+import { ProfilePhotoUpload } from "@/components/profile/ProfilePhotoUpload";
+import { CertificatesSection } from "@/components/profile/CertificatesSection";
 import { BRAND } from "@/lib/constants";
 import { motion } from "framer-motion";
-import { User, CreditCard, ExternalLink } from "lucide-react";
+import { CreditCard, ExternalLink, ShieldCheck, User } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { apiService } from "@/api/api-service";
 
 export default function ProfilePage() {
   const { user, getUserType } = useAuthStore();
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(
+    user?.user_metadata?.avatar_url
+  );
 
   const userName =
     user?.user_metadata?.full_name ||
@@ -19,18 +26,28 @@ export default function ProfilePage() {
   const userType = getUserType();
   const isWorker = userType === "worker";
 
-  // Derive profile data from auth user
   const primarySkill = isWorker ? "Skilled Artisan" : "Customer";
-  const rating = 4.5; // Default rating - in production this comes from reputation store
+  const rating = 4.5;
   const contactInfo = user?.email || "";
 
-  // Build the username slug for the profile URL
   const usernameSlug =
     user?.user_metadata?.worker_profile_id ||
     user?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9-]/g, "-") ||
     "profile";
 
   const profileUrl = `${BRAND.website}/artisan/${usernameSlug}`;
+
+  async function handlePhotoUploaded(url: string) {
+    setPhotoUrl(url);
+    // Persist to worker profile so the public page shows the new photo
+    try {
+      await apiService.patch("/worker/profile/photo", {
+        body: { photo_url: url },
+      });
+    } catch {
+      // Non-critical — file is uploaded, link update can be retried later
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -55,35 +72,65 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Profile Summary Card */}
+      {/* Profile Summary */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl border border-gray-100 p-6"
       >
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[var(--orange)]/20 flex items-center justify-center">
-            {user?.user_metadata?.avatar_url ? (
+        <div className="flex items-center gap-3 mb-6">
+          <User className="w-5 h-5 text-[var(--orange)]" />
+          <h2 className="text-lg font-semibold text-gray-900">Profile Info</h2>
+        </div>
+
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-14 h-14 rounded-full bg-[var(--orange)]/10 overflow-hidden flex items-center justify-center shrink-0">
+            {photoUrl ? (
               <img
-                src={user.user_metadata.avatar_url}
+                src={photoUrl}
                 alt={userName}
-                className="w-full h-full rounded-full object-cover"
+                className="w-full h-full object-cover"
               />
             ) : (
-              <User className="w-8 h-8 text-[var(--orange)]" />
+              <User className="w-7 h-7 text-[var(--orange)]" />
             )}
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{userName}</h2>
+            <h3 className="text-base font-semibold text-gray-900">{userName}</h3>
             <p className="text-sm text-gray-500">{contactInfo}</p>
-            <span className="inline-block mt-1 px-2.5 py-0.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600 capitalize">
+            <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600 capitalize">
               {userType || "User"}
             </span>
           </div>
         </div>
+
+        {isWorker && (
+          <ProfilePhotoUpload
+            currentPhotoUrl={photoUrl}
+            onUploaded={handlePhotoUploaded}
+          />
+        )}
       </motion.div>
 
-      {/* Business Card Section - shown for workers */}
+      {/* Certificates — workers only */}
+      {isWorker && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-white rounded-2xl border border-gray-100 p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <ShieldCheck className="w-5 h-5 text-[var(--orange)]" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Credentials
+            </h2>
+          </div>
+          <CertificatesSection />
+        </motion.div>
+      )}
+
+      {/* Business Card — workers only */}
       {isWorker && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -91,7 +138,7 @@ export default function ProfilePage() {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-2xl border border-gray-100 p-6"
         >
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-3 mb-6">
             <CreditCard className="w-5 h-5 text-[var(--orange)]" />
             <h2 className="text-lg font-semibold text-gray-900">
               Digital Business Card
