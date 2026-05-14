@@ -37,7 +37,7 @@ const FIELDS: FieldConfig[] = [
   { key: "avgPay", label: "Hourly/Daily Rate", placeholder: "Waiting for input...", icon: <Banknote className="w-4 h-4" />, colSpan: "half" },
   { key: "experience", label: "Experience", placeholder: "Waiting for input...", icon: <Clock className="w-4 h-4" />, colSpan: "half" },
   { key: "location", label: "Location", placeholder: "Waiting for input...", icon: <MapPin className="w-4 h-4" />, colSpan: "half" },
-  { key: "bio", label: "About You", placeholder: "Waiting for input...", icon: <FileText className="w-4 h-4" />, colSpan: "full" },
+  { key: "bio", label: "About You (optional)", placeholder: "Waiting for input...", icon: <FileText className="w-4 h-4" />, colSpan: "full" },
 ];
 
 export default function WorkerOnboardingPage() {
@@ -71,7 +71,8 @@ export default function WorkerOnboardingPage() {
   }, [initOnboarding]);
 
   const hasFields = Object.keys(confirmationFields).length > 0;
-  const allFieldsFilled = FIELDS.every(
+  const REQUIRED_FIELDS = FIELDS.filter((f) => f.key !== "bio");
+  const allFieldsFilled = REQUIRED_FIELDS.every(
     (f) => confirmationFields[f.key] && confirmationFields[f.key].trim() !== ""
   );
 

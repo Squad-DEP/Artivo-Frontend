@@ -11,7 +11,7 @@ export default function EmailSettingsPage() {
   const router = useRouter();
 
   return (
-    <div className="max-w-2xl mx-auto md:mx-0">
+    <div className="md:mx-0">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link

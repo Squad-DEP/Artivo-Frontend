@@ -5,6 +5,7 @@ import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronL
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/api/api-service";
+import { HirePaymentDialog } from "@/components/customer/HirePaymentDialog";
 
 interface JobRequest {
   id: string;
@@ -24,6 +25,7 @@ interface Proposal {
   worker_name: string;
   photo_url: string | null;
   proposed_amount: number;
+  proposed_amount_max: number | null;
   status: string;
   created_at: string;
 }
@@ -39,7 +41,8 @@ export function JobProposalsView() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
-  const [hiringId, setHiringId] = useState<string | null>(null);
+  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [hiredProposalIds, setHiredProposalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -73,18 +76,19 @@ export function JobProposalsView() {
     }
   }
 
-  async function hire(proposalId: string) {
-    setHiringId(proposalId);
-    setError(null);
-    try {
-      await apiService.post("/customer/hire", { body: { proposal_id: proposalId } });
-      setHiredProposalIds((prev) => new Set(prev).add(proposalId));
-      // Refresh job requests to update status
-      fetchJobRequests();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to hire. Please try again.");
-    } finally {
-      setHiringId(null);
+  function initiateHire(proposal: Proposal) {
+    setSelectedProposal(proposal);
+    setShowPaymentDialog(true);
+  }
+
+  function handlePaymentDialogClose() {
+    setShowPaymentDialog(false);
+    setSelectedProposal(null);
+    // Refresh job requests to update status
+    fetchJobRequests();
+    // Refresh proposals to update hired status
+    if (selectedJob) {
+      openProposals(selectedJob);
     }
   }
 
@@ -137,7 +141,6 @@ export function JobProposalsView() {
           {proposals.map((proposal) => {
             const isHired = hiredProposalIds.has(proposal.id) || proposal.status === "accepted";
             const isRejected = proposal.status === "rejected";
-            const isHiring = hiringId === proposal.id;
             const jobAssigned = selectedJob.status === "assigned";
 
             return (
@@ -152,7 +155,12 @@ export function JobProposalsView() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-foreground truncate">{proposal.worker_name}</p>
                   <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-sm font-semibold text-primary">{formatAmount(proposal.proposed_amount)}</span>
+                    <span className="text-sm font-semibold text-primary">
+                      {formatAmount(proposal.proposed_amount)}
+                      {proposal.proposed_amount_max && proposal.proposed_amount_max > proposal.proposed_amount
+                        ? ` – ${formatAmount(proposal.proposed_amount_max)}`
+                        : ""}
+                    </span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {new Date(proposal.created_at).toLocaleDateString()}
@@ -172,12 +180,11 @@ export function JobProposalsView() {
                   ) : (
                     <Button
                       size="sm"
-                      onClick={() => hire(proposal.id)}
-                      disabled={isHiring || jobAssigned}
+                      onClick={() => initiateHire(proposal)}
+                      disabled={jobAssigned}
                       className="gap-1.5"
                     >
-                      {isHiring ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                      {isHiring ? "Hiring…" : "Hire"}
+                      Hire
                     </Button>
                   )}
                 </div>
@@ -185,6 +192,16 @@ export function JobProposalsView() {
             );
           })}
         </div>
+
+        {/* Payment Dialog */}
+        {selectedProposal && selectedJob && (
+          <HirePaymentDialog
+            isOpen={showPaymentDialog}
+            onClose={handlePaymentDialogClose}
+            proposal={selectedProposal}
+            jobRequestId={selectedJob.id}
+          />
+        )}
       </div>
     );
   }

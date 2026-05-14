@@ -31,7 +31,8 @@ export function WorkerJobFeed() {
   } = useWorkerJobStore();
 
   const [tab, setTab] = React.useState<Tab>("available");
-  const [proposedAmounts, setProposedAmounts] = React.useState<Record<string, string>>({});
+  const [proposedMin, setProposedMin] = React.useState<Record<string, string>>({});
+  const [proposedMax, setProposedMax] = React.useState<Record<string, string>>({});
   const [acceptingJobId, setAcceptingJobId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -53,13 +54,15 @@ export function WorkerJobFeed() {
   };
 
   const handleAcceptJob = async (jobRequestId: string) => {
-    const amount = parseFloat(proposedAmounts[jobRequestId]);
-    if (!amount || amount <= 0) return;
+    const min = parseFloat(proposedMin[jobRequestId]);
+    const max = parseFloat(proposedMax[jobRequestId]);
+    if (!min || min <= 0 || !max || max <= 0 || max < min) return;
     setAcceptingJobId(jobRequestId);
-    const ok = await acceptJob(jobRequestId, amount);
+    const ok = await acceptJob(jobRequestId, min, max);
     setAcceptingJobId(null);
     if (ok) {
-      setProposedAmounts((prev) => { const next = { ...prev }; delete next[jobRequestId]; return next; });
+      setProposedMin((prev) => { const next = { ...prev }; delete next[jobRequestId]; return next; });
+      setProposedMax((prev) => { const next = { ...prev }; delete next[jobRequestId]; return next; });
       setTab("applications");
     }
   };
@@ -141,8 +144,10 @@ export function WorkerJobFeed() {
               <JobCard
                 key={job.id}
                 job={job}
-                proposedAmount={proposedAmounts[job.id] ?? ""}
-                onAmountChange={(value) => setProposedAmounts((prev) => ({ ...prev, [job.id]: value }))}
+                proposedMin={proposedMin[job.id] ?? ""}
+                proposedMax={proposedMax[job.id] ?? ""}
+                onMinChange={(v) => setProposedMin((prev) => ({ ...prev, [job.id]: v }))}
+                onMaxChange={(v) => setProposedMax((prev) => ({ ...prev, [job.id]: v }))}
                 onAccept={() => handleAcceptJob(job.id)}
                 isAccepting={acceptingJobId === job.id}
               />
@@ -187,18 +192,24 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 function JobCard({
   job,
-  proposedAmount,
-  onAmountChange,
+  proposedMin,
+  proposedMax,
+  onMinChange,
+  onMaxChange,
   onAccept,
   isAccepting,
 }: {
   job: StreamedJob;
-  proposedAmount: string;
-  onAmountChange: (value: string) => void;
+  proposedMin: string;
+  proposedMax: string;
+  onMinChange: (value: string) => void;
+  onMaxChange: (value: string) => void;
   onAccept: () => void;
   isAccepting: boolean;
 }) {
-  const isAmountValid = proposedAmount !== "" && !isNaN(parseFloat(proposedAmount)) && parseFloat(proposedAmount) > 0;
+  const min = parseFloat(proposedMin);
+  const max = parseFloat(proposedMax);
+  const isValid = min > 0 && max > 0 && max >= min;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -216,26 +227,41 @@ function JobCard({
         <span>Budget: {formatBudget(job.budget)}</span>
         <span>By {job.customer_name}</span>
       </div>
-      <div className="flex items-end gap-2 pt-1">
-        <div className="flex-1">
-          <label htmlFor={`amount-${job.id}`} className="text-xs font-medium text-muted-foreground mb-1 block">
-            Your Proposed Amount (₦)
-          </label>
-          <Input
-            id={`amount-${job.id}`}
-            type="number"
-            min="1"
-            step="any"
-            placeholder="Enter your price"
-            value={proposedAmount}
-            onChange={(e) => onAmountChange(e.target.value)}
-            disabled={isAccepting}
-            className="h-9 text-sm"
-          />
+      <div className="space-y-2 pt-1">
+        <p className="text-xs font-medium text-muted-foreground">Your Price Range (₦)</p>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <Input
+              type="number"
+              min="1"
+              step="any"
+              placeholder="Min"
+              value={proposedMin}
+              onChange={(e) => onMinChange(e.target.value)}
+              disabled={isAccepting}
+              className="h-9 text-sm"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground shrink-0">to</span>
+          <div className="flex-1">
+            <Input
+              type="number"
+              min="1"
+              step="any"
+              placeholder="Max"
+              value={proposedMax}
+              onChange={(e) => onMaxChange(e.target.value)}
+              disabled={isAccepting}
+              className="h-9 text-sm"
+            />
+          </div>
+          <Button onClick={onAccept} disabled={isAccepting || !isValid} size="sm" className="shrink-0">
+            {isAccepting ? <><Spinner />Sending...</> : "Apply"}
+          </Button>
         </div>
-        <Button onClick={onAccept} disabled={isAccepting || !isAmountValid} size="sm" className="shrink-0">
-          {isAccepting ? <><Spinner />Sending...</> : "Apply"}
-        </Button>
+        {proposedMin && proposedMax && !isValid && (
+          <p className="text-xs text-destructive">Max must be greater than or equal to min.</p>
+        )}
       </div>
     </div>
   );
@@ -266,8 +292,13 @@ function ProposalCard({ proposal }: { proposal: WorkerProposal }) {
         <span>By {proposal.customer_name}</span>
       </div>
       <div className="flex items-center justify-between pt-1 border-t border-border">
-        <span className="text-xs text-muted-foreground">Your proposal</span>
-        <span className="text-sm font-semibold text-foreground">₦{Number(proposal.proposed_amount).toLocaleString("en-NG")}</span>
+        <span className="text-xs text-muted-foreground">Your price range</span>
+        <span className="text-sm font-semibold text-foreground">
+          ₦{Number(proposal.proposed_amount).toLocaleString("en-NG")}
+          {proposal.proposed_amount_max && proposal.proposed_amount_max > proposal.proposed_amount
+            ? ` – ₦${Number(proposal.proposed_amount_max).toLocaleString("en-NG")}`
+            : ""}
+        </span>
       </div>
     </div>
   );

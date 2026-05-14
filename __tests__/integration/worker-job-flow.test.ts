@@ -96,7 +96,7 @@ describe("Integration: Worker Job Flow (Subscribe → Poll → Accept)", () => {
       // fetchProposals called after accept
       mockedApiService.get.mockResolvedValueOnce({ proposals: [] });
 
-      const acceptResult = await useWorkerJobStore.getState().acceptJob("job-req-1", 14000);
+      const acceptResult = await useWorkerJobStore.getState().acceptJob("job-req-1", 14000, 14000);
 
       expect(acceptResult).toBe(true);
       expect(mockedApiService.post).toHaveBeenCalledWith("/worker/accept-job", {
@@ -124,7 +124,7 @@ describe("Integration: Worker Job Flow (Subscribe → Poll → Accept)", () => {
       mockedApiService.post.mockRejectedValueOnce(
         new Error("409: Job already accepted by another worker")
       );
-      const acceptResult = await useWorkerJobStore.getState().acceptJob("job-req-1", 14000);
+      const acceptResult = await useWorkerJobStore.getState().acceptJob("job-req-1", 14000, 14000);
 
       expect(acceptResult).toBe(false);
       const state = useWorkerJobStore.getState();
@@ -211,14 +211,14 @@ describe("Integration: Worker Job Flow (Subscribe → Poll → Accept)", () => {
       await useWorkerJobStore.getState().fetchJobs();
 
       mockedApiService.post.mockRejectedValueOnce(new Error("409: already accepted"));
-      await useWorkerJobStore.getState().acceptJob("job-req-1", 14000);
+      await useWorkerJobStore.getState().acceptJob("job-req-1", 14000, 14000);
 
       expect(useWorkerJobStore.getState().error).toBe("This job has already been accepted by another worker");
       expect(useWorkerJobStore.getState().streamedJobs).toHaveLength(2);
 
       mockedApiService.post.mockResolvedValueOnce({ msg: "Job accepted" });
       mockedApiService.get.mockResolvedValueOnce({ proposals: [] });
-      const result = await useWorkerJobStore.getState().acceptJob("job-req-2", 10000);
+      const result = await useWorkerJobStore.getState().acceptJob("job-req-2", 10000, 10000);
 
       expect(result).toBe(true);
       expect(useWorkerJobStore.getState().error).toBeNull();

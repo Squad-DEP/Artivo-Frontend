@@ -165,12 +165,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
           <hr className="my-6 border-[#EBEBEB]" />
 
-          <Button
-            onClick={handleNewJob}
-            className="bg-[var(--orange)] hover:bg-[var(--orange-hover)] text-white w-full mb-8 rounded-lg py-3 font-semibold text-base cursor-pointer"
-          >
-            {ctaLabel}
-          </Button>
+          {userType === "worker" && (
+            <Button
+              onClick={handleNewJob}
+              className="bg-[var(--orange)] hover:bg-[var(--orange-hover)] text-white w-full mb-8 rounded-lg py-3 font-semibold text-base cursor-pointer"
+            >
+              Find Jobs
+            </Button>
+          )}
 
           <nav className="p-2 flex flex-col gap-1 text-[var(--sidebar-foreground)] border rounded-[20px]">
             {links.map((link, index) => (
@@ -221,12 +223,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 variants={sidebarVariants}
                 className="fixed top-[61px] left-0 flex md:hidden flex-col h-max w-full bg-white border-r border-[var(--sidebar-border)] px-4 py-6"
               >
-                <Button
-                  onClick={handleNewJob}
-                  className="bg-[var(--orange)] hover:bg-[var(--orange-hover)] text-white w-full mb-6 rounded-lg py-3 font-semibold text-base"
-                >
-                  {ctaLabel}
-                </Button>
+                {userType === "worker" && (
+                  <Button
+                    onClick={handleNewJob}
+                    className="bg-[var(--orange)] hover:bg-[var(--orange-hover)] text-white w-full mb-6 rounded-lg py-3 font-semibold text-base"
+                  >
+                    Find Jobs
+                  </Button>
+                )}
                 <nav className="p-2 flex flex-col gap-1 text-[var(--sidebar-foreground)] border rounded-[20px]">
                   {links.map((link) => (
                     <SidebarItem
@@ -272,13 +276,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={handleNewJob}
-              size="sm"
-              className="bg-[var(--orange)] hover:bg-[var(--orange-hover)] text-white rounded-lg px-3 py-1 text-xs font-semibold"
-            >
-              {userType === "worker" ? "Jobs" : "+ Post"}
-            </Button>
+            {userType === "worker" && (
+              <Button
+                onClick={handleNewJob}
+                size="sm"
+                className="bg-[var(--orange)] hover:bg-[var(--orange-hover)] text-white rounded-lg px-3 py-1 text-xs font-semibold"
+              >
+                Jobs
+              </Button>
+            )}
             <Link href="/dashboard/profile">
               <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-[var(--orange)] bg-[var(--orange)]/20 flex items-center justify-center">
                 <User className="w-4 h-4 text-[var(--orange)]" />

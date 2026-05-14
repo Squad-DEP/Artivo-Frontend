@@ -259,7 +259,7 @@ describe("workerJobStore", () => {
 
       const result = await useWorkerJobStore
         .getState()
-        .acceptJob("job-1", 5000);
+        .acceptJob("job-1", 5000, 5000);
 
       expect(result).toBe(true);
       expect(mockApiService.post).toHaveBeenCalledWith("/worker/accept-job", {
@@ -295,7 +295,7 @@ describe("workerJobStore", () => {
 
       const result = await useWorkerJobStore
         .getState()
-        .acceptJob("job-1", 5000);
+        .acceptJob("job-1", 5000, 5000);
 
       expect(result).toBe(false);
       const state = useWorkerJobStore.getState();
@@ -328,7 +328,7 @@ describe("workerJobStore", () => {
 
       const result = await useWorkerJobStore
         .getState()
-        .acceptJob("job-1", 5000);
+        .acceptJob("job-1", 5000, 5000);
 
       expect(result).toBe(false);
       const state = useWorkerJobStore.getState();

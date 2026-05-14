@@ -328,18 +328,19 @@ export const useOnboardingStore = create<OnboardingState>()(
           const confirmationFields: Record<string, string> = {};
 
           if (role === "worker") {
-            const { profession, skills, yearsOfExperience, cityLocation, expectedHourlyRate } = raw as {
-              profession?: string | null;
-              skills?: string | string[] | null;
-              yearsOfExperience?: string | number | null;
-              cityLocation?: string | null;
-              expectedHourlyRate?: string | null;
-            };
-            if (profession) confirmationFields.fullName = profession;
+            const r = raw as Record<string, unknown>;
+            const fullName = (r.fullName || r.profession) as string | null | undefined;
+            const skills = r.skills as string | string[] | null | undefined;
+            const yearsOfExperience = r.yearsOfExperience as string | number | null | undefined;
+            const cityLocation = r.cityLocation as string | null | undefined;
+            const avgPay = (r.avgPay || r.expectedHourlyRate) as string | null | undefined;
+            const bio = r.bio as string | null | undefined;
+            if (fullName) confirmationFields.fullName = fullName;
             if (skills != null) confirmationFields.skills = Array.isArray(skills) ? skills.join(", ") : String(skills);
             if (yearsOfExperience != null) confirmationFields.experience = String(yearsOfExperience);
-            if (expectedHourlyRate) confirmationFields.avgPay = expectedHourlyRate;
+            if (avgPay) confirmationFields.avgPay = avgPay;
             if (cityLocation) confirmationFields.location = cityLocation;
+            if (bio) confirmationFields.bio = bio;
           } else {
             const { clientName, serviceRequired } = raw as {
               clientName?: string | null;
@@ -383,18 +384,19 @@ export const useOnboardingStore = create<OnboardingState>()(
           const confirmationFields: Record<string, string> = {};
 
           if (role === "worker") {
-            const { profession, skills, yearsOfExperience, cityLocation, expectedHourlyRate } = raw as {
-              profession?: string | null;
-              skills?: string | string[] | null;
-              yearsOfExperience?: string | number | null;
-              cityLocation?: string | null;
-              expectedHourlyRate?: string | null;
-            };
-            if (profession) confirmationFields.fullName = profession;
+            const r = raw as Record<string, unknown>;
+            const fullName = (r.fullName || r.profession) as string | null | undefined;
+            const skills = r.skills as string | string[] | null | undefined;
+            const yearsOfExperience = r.yearsOfExperience as string | number | null | undefined;
+            const cityLocation = r.cityLocation as string | null | undefined;
+            const avgPay = (r.avgPay || r.expectedHourlyRate) as string | null | undefined;
+            const bio = r.bio as string | null | undefined;
+            if (fullName) confirmationFields.fullName = fullName;
             if (skills != null) confirmationFields.skills = Array.isArray(skills) ? skills.join(", ") : String(skills);
             if (yearsOfExperience != null) confirmationFields.experience = String(yearsOfExperience);
-            if (expectedHourlyRate) confirmationFields.avgPay = expectedHourlyRate;
+            if (avgPay) confirmationFields.avgPay = avgPay;
             if (cityLocation) confirmationFields.location = cityLocation;
+            if (bio) confirmationFields.bio = bio;
           } else {
             const { clientName, serviceRequired } = raw as {
               clientName?: string | null;

@@ -7,7 +7,6 @@ import { useReputationStore } from "@/store/reputationStore";
 import { useCreditStore } from "@/store/creditStore";
 import { useJobStore } from "@/store/jobStore";
 import { useOAuthRedirect } from "@/hooks/useOAuthRedirect";
-import { PostJobDialog } from "@/components/customer/PostJobDialog";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -444,7 +443,6 @@ function CustomerDashboard({ userName }: { userName: string }) {
           <p className="text-gray-500 mt-1">Find skilled artisans for any job</p>
         </div>
         <div className="flex gap-2">
-          <PostJobDialog />
           <Button
             onClick={() => router.push("/marketplace")}
             variant="outline"
@@ -476,14 +474,13 @@ function CustomerDashboard({ userName }: { userName: string }) {
             Post a job for artisans to apply, or browse the marketplace to hire directly.
           </p>
           <div className="space-y-3">
-            <PostJobDialog
-              trigger={
-                <Button className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
-                  <Briefcase className="w-4 h-4 mr-2" />
-                  Post a Job
-                </Button>
-              }
-            />
+            <Button
+              className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
+              onClick={() => router.push("/dashboard/jobs/new")}
+            >
+              <Briefcase className="w-4 h-4 mr-2" />
+              Post a Job
+            </Button>
             <Button
               className="w-full"
               variant="outline"

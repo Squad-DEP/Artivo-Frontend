@@ -53,22 +53,33 @@ export default function JobsListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Jobs</h1>
-          <p className="text-gray-500 mt-1">
-            {userType === "worker" ? "Jobs you're working on" : "Your active jobs and job posts"}
-          </p>
-        </div>
-        {userType === "worker" && (
-          <Button
-            onClick={() => router.push("/dashboard/jobs/feed")}
-            className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
-          >
-            Find Jobs
-          </Button>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">My Jobs</h1>
+        <p className="text-gray-500 mt-1">
+          {userType === "worker" ? "Jobs you're working on" : "Your active jobs and job posts"}
+        </p>
       </div>
+
+      {/* Primary CTA — always visible */}
+      {userType === "customer" ? (
+        <button
+          onClick={() => router.push("/dashboard/jobs/new")}
+          className="w-full flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-[var(--orange)]/40 bg-[var(--orange)]/5 hover:bg-[var(--orange)]/10 hover:border-[var(--orange)]/60 transition-all px-5 py-4 text-left"
+        >
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Find / Hire an Artisan</p>
+            <p className="text-xs text-gray-500 mt-0.5">Describe your job by voice or text — our AI posts it instantly</p>
+          </div>
+          <span className="shrink-0 w-9 h-9 rounded-full bg-[var(--orange)] flex items-center justify-center text-white text-lg font-bold">+</span>
+        </button>
+      ) : (
+        <Button
+          onClick={() => router.push("/dashboard/jobs/feed")}
+          className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white w-full sm:w-auto"
+        >
+          Find Jobs
+        </Button>
+      )}
 
       {/* Customer tabs */}
       {userType === "customer" && (
@@ -149,18 +160,14 @@ export default function JobsListPage() {
           })}
         </div>
       ) : (userType === "worker" || (userType === "customer" && tab === "jobs")) ? (
-        <div className="text-center py-16 min-h-[60vh] flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-[var(--orange)]/5">
-          <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No jobs yet</h3>
-          <p className="text-gray-500 text-sm mb-4">
-            {userType === "worker" ? "Browse the job feed to find work" : "Post a job or hire an artisan to get started"}
+        <div className="text-center py-12 flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-gray-50/50">
+          <Briefcase className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-gray-900 mb-1">
+            {userType === "worker" ? "No active jobs" : "No hired jobs yet"}
+          </h3>
+          <p className="text-gray-400 text-sm">
+            {userType === "worker" ? "Apply to jobs from the feed to get started" : "Hire an artisan using the button above"}
           </p>
-          <Button
-            onClick={() => router.push(userType === "worker" ? "/dashboard/jobs/feed" : "/marketplace")}
-            className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
-          >
-            {userType === "worker" ? "Find Jobs" : "Find Artisans"}
-          </Button>
         </div>
       ) : null}
     </div>

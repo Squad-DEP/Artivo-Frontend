@@ -26,6 +26,7 @@ export interface WorkerProposal {
   id: string;
   job_request_id: string;
   proposed_amount: number;
+  proposed_amount_max: number | null;
   status: "pending" | "accepted" | "rejected";
   created_at: string;
   title: string;
@@ -52,7 +53,7 @@ export interface WorkerJobState {
   stopPolling: () => void;
   subscribe: (jobTypeId: string) => Promise<boolean>;
   unsubscribe: (jobTypeId: string) => Promise<boolean>;
-  acceptJob: (jobRequestId: string, proposedAmount: number) => Promise<boolean>;
+  acceptJob: (jobRequestId: string, proposedAmountMin: number, proposedAmountMax: number) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -146,10 +147,14 @@ export const useWorkerJobStore = create<WorkerJobState>()((set, get) => ({
     }
   },
 
-  acceptJob: async (jobRequestId: string, proposedAmount: number) => {
+  acceptJob: async (jobRequestId: string, proposedAmountMin: number, proposedAmountMax: number) => {
     set({ isLoading: true, error: null });
     try {
-      const payload: AcceptJobPayload = { job_request_id: jobRequestId, proposed_amount: proposedAmount };
+      const payload = {
+        job_request_id: jobRequestId,
+        proposed_amount: proposedAmountMin,
+        proposed_amount_max: proposedAmountMax,
+      };
       await apiService.post<{ msg: string }>("/worker/accept-job", { body: payload });
       // Remove from available feed, refresh proposals
       set((state) => ({

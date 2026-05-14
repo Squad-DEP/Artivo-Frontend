@@ -10,7 +10,6 @@ import type {
   VerifyPaymentResponse,
 } from "@/api/types/marketplace-api";
 import { validateJobRequest } from "@/lib/utils/hire-validation";
-import { nairaToKobo } from "@/lib/utils/payment";
 
 export type HireFlowStep =
   | "idle"
@@ -215,41 +214,44 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
   openSquadModal: (email: string, amount: number, jobId: string) => {
     set({ step: "paying", error: null });
 
-    const koboAmount = nairaToKobo(amount);
+    const koboAmount = amount * 100; // Convert Naira to kobo
 
     const openModal = () => {
-      const SquadPay = (window as unknown as Record<string, unknown>).SquadPay as
-        | (new (config: Record<string, unknown>) => { open: () => void })
-        | undefined;
-
-      if (!SquadPay) {
+      if (!window.squad) {
         set({ error: "Payment SDK not available. Please refresh and try again.", step: "paying" });
         return;
       }
 
-      const squad = new SquadPay({
+      const squadInstance = new window.squad({
         onClose: () => {
+          console.log("Squad widget closed");
           // User dismissed modal without paying — stay on paying step so they can retry
           if (get().step === "verifying") return; // don't override if already verifying
           set({ step: "paying" });
         },
-        onLoad: () => { /* modal rendered */ },
+        onLoad: () => {
+          console.log("Squad widget loaded successfully");
+        },
         onSuccess: (response: { transaction_ref?: string }) => {
+          console.log("Payment successful", response);
           const transactionRef = response?.transaction_ref ?? `txn_${Date.now()}`;
           get().verifyPayment(jobId, transactionRef, amount);
         },
-        key: process.env.NEXT_PUBLIC_SQUAD_PUBLIC_KEY,
+        key: process.env.NEXT_PUBLIC_SQUAD_PUBLIC_KEY!,
         amount: koboAmount,
         email,
         currency_code: "NGN",
+        customer_name: email.split('@')[0], // Use email prefix as name
         // Embed job ID in metadata so it's traceable in Squad dashboard
         metadata: { job_id: jobId },
+        pass_charge: false,
       });
 
-      squad.open();
+      squadInstance.setup();
+      squadInstance.open();
     };
 
-    if ((window as unknown as Record<string, unknown>).SquadPay) {
+    if (window.squad) {
       openModal();
     } else {
       const script = document.createElement("script");
