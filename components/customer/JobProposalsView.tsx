@@ -81,14 +81,13 @@ export function JobProposalsView() {
     setShowPaymentDialog(true);
   }
 
-  function handlePaymentDialogClose() {
+  function handlePaymentDialogClose(didSucceed = false) {
     setShowPaymentDialog(false);
     setSelectedProposal(null);
-    // Refresh job requests to update status
-    fetchJobRequests();
-    // Refresh proposals to update hired status
-    if (selectedJob) {
-      openProposals(selectedJob);
+    if (didSucceed) {
+      // Only refresh data if payment actually completed
+      fetchJobRequests();
+      if (selectedJob) openProposals(selectedJob);
     }
   }
 

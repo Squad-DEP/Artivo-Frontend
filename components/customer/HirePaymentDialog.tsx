@@ -9,7 +9,7 @@ import type { PaymentMethod } from "@/store/hireFlowStore";
 
 interface HirePaymentDialogProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (didSucceed?: boolean) => void;
   proposal: {
     id: string;
     worker_id: string;
@@ -42,9 +42,8 @@ export function HirePaymentDialog({
 
   useEffect(() => {
     if (step === "complete") {
-      // Payment successful - close dialog after a brief delay
       const timer = setTimeout(() => {
-        onClose();
+        onClose(true); // signal success so parent can refresh
         reset();
       }, 2000);
       return () => clearTimeout(timer);
@@ -71,9 +70,8 @@ export function HirePaymentDialog({
     );
 
     if (success && selectedMethod === "offline") {
-      // Offline payment - job starts immediately
       setTimeout(() => {
-        onClose();
+        onClose(true);
         reset();
       }, 1500);
     }
@@ -107,16 +105,20 @@ export function HirePaymentDialog({
   }
 
   // Verifying payment state
-  if (step === "verifying") {
+  if (step === "verifying" || step === "checking") {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4">
           <div className="flex flex-col items-center text-center space-y-3">
             <Loader2 className="w-12 h-12 animate-spin text-[var(--orange)]" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Verifying Payment</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {step === "checking" ? "Waiting for Payment" : "Verifying Payment"}
+              </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Please wait while we confirm your payment...
+                {step === "checking"
+                  ? "Checking if your payment went through. This can take up to a minute…"
+                  : "Please wait while we confirm your payment…"}
               </p>
             </div>
           </div>

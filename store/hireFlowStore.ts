@@ -18,6 +18,7 @@ export type HireFlowStep =
   | "choosing_payment"
   | "paying"
   | "verifying"
+  | "checking"   // Squad closed without onSuccess — polling job status
   | "complete";
 
 export type PaymentMethod = "online" | "offline";
@@ -53,6 +54,7 @@ export interface HireFlowState {
   hireWorker: (jobRequestId: string, workerId: string, amount: number, paymentMethod: PaymentMethod) => Promise<boolean>;
   openSquadModal: (email: string, amount: number, jobId: string) => void;
   verifyPayment: (jobId: string, transactionReference: string, amount: number) => Promise<boolean>;
+  checkJobStatus: (jobId: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -225,9 +227,11 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
       const squadInstance = new window.squad({
         onClose: () => {
           console.log("Squad widget closed");
-          // User dismissed modal without paying — stay on paying step so they can retry
-          if (get().step === "verifying") return; // don't override if already verifying
-          set({ step: "paying" });
+          const currentStep = get().step;
+          // Don't override if already past paying
+          if (currentStep === "verifying" || currentStep === "complete") return;
+          // Squad closed without onSuccess — poll the job to see if payment landed
+          get().checkJobStatus(jobId);
         },
         onLoad: () => {
           console.log("Squad widget loaded successfully");
@@ -241,8 +245,8 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
         amount: koboAmount,
         email,
         currency_code: "NGN",
-        customer_name: email.split('@')[0], // Use email prefix as name
-        // Embed job ID in metadata so it's traceable in Squad dashboard
+        customer_name: email.split('@')[0],
+        callback_url: `${window.location.origin}/dashboard/jobs`,
         metadata: { job_id: jobId },
         pass_charge: false,
       });
@@ -303,6 +307,40 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
       });
       return false;
     }
+  },
+
+  checkJobStatus: async (jobId: string) => {
+    set({ step: "checking", error: null });
+    const baseUrl = getApiBaseUrl();
+    const user = useAuthStore.getState().user;
+
+    // Poll up to 12 times (60s) waiting for job status to flip to in_progress/paid
+    for (let i = 0; i < 12; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      try {
+        const res = await fetch(`${baseUrl}/v1/jobs/${jobId}`, {
+          headers: { Authorization: `Bearer ${user?.access_token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const status = data?.job?.status ?? data?.status;
+          if (status === "in_progress" || status === "paid" || status === "pending_payment") {
+            // Payment confirmed (webhook may have beaten us here)
+            set({ step: "complete", isLoading: false });
+            return;
+          }
+        }
+      } catch { /* network hiccup — keep polling */ }
+
+      // Stop polling if user navigated away or reset
+      if (get().step !== "checking") return;
+    }
+
+    // Gave up — let user retry manually
+    set({
+      step: "paying",
+      error: "We couldn't confirm your payment automatically. If funds were deducted, please contact support with your transaction reference.",
+    });
   },
 
   reset: () => set(initialState),
