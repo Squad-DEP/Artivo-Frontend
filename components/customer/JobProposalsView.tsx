@@ -229,7 +229,7 @@ export function JobProposalsView() {
         </div>
       )}
 
-      {!isLoadingJobs && jobRequests.length === 0 && (
+      {!isLoadingJobs && jobRequests.filter(j => j.status === "open").length === 0 && (
         <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-4">
           <p className="text-sm text-muted-foreground">You haven't posted any jobs yet.</p>
           <Button
@@ -243,7 +243,7 @@ export function JobProposalsView() {
       )}
 
       <div className="space-y-3">
-        {jobRequests.map((job) => (
+        {jobRequests.filter(j => j.status === "open").map((job) => (
           <div key={job.id} className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-start justify-between gap-3 mb-1">
               <div className="min-w-0">
