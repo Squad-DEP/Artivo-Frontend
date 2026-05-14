@@ -15,9 +15,13 @@ interface WorkerProfileMe {
   display_name: string;
   photo_url: string | null;
   bio: string | null;
+  tagline: string | null;
   skills: string[];
   location: string | null;
   share_slug: string;
+  phone: string | null;
+  email: string | null;
+  average_rating: number;
 }
 
 export default function ProfilePage() {
@@ -142,8 +146,10 @@ export default function ProfilePage() {
           <BusinessCardEditor
             name={workerProfile?.display_name || userName}
             primarySkill={workerProfile?.skills?.[0] || "Skilled Artisan"}
-            rating={4.5}
-            contactInfo={user?.email || ""}
+            rating={workerProfile?.average_rating || 0}
+            tagline={workerProfile?.tagline}
+            phone={workerProfile?.phone || null}
+            location={workerProfile?.location}
             profileUrl={profileUrl}
             username={usernameSlug}
           />

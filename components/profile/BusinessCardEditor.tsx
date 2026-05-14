@@ -48,7 +48,9 @@ interface BusinessCardEditorProps {
   name: string;
   primarySkill: string;
   rating: number;
-  contactInfo?: string;
+  tagline?: string | null;
+  phone?: string | null;
+  location?: string | null;
   profileUrl: string;
   username: string;
 }
@@ -63,7 +65,9 @@ export function BusinessCardEditor({
   name,
   primarySkill,
   rating,
-  contactInfo,
+  tagline,
+  phone,
+  location,
   profileUrl,
   username,
 }: BusinessCardEditorProps) {
@@ -181,6 +185,12 @@ export function BusinessCardEditor({
             {primarySkill}
           </p>
 
+          {tagline && (
+            <p className={cn("text-xs italic mt-0.5", theme.secondaryText)}>
+              "{tagline}"
+            </p>
+          )}
+
           <div className="flex items-center gap-1 mt-1">
             {renderStars(rating)}
             <span className={cn("text-xs ml-1", theme.secondaryText)}>
@@ -188,15 +198,11 @@ export function BusinessCardEditor({
             </span>
           </div>
 
-          {contactInfo && (
-            <p className={cn("text-xs mt-1", theme.secondaryText)}>
-              {contactInfo}
-            </p>
-          )}
-
-          <p className={cn("text-xs mt-1", theme.secondaryText)}>
-            {profileUrl}
-          </p>
+          <div className={cn("flex flex-col gap-0.5 mt-1.5 text-xs", theme.secondaryText)}>
+            {phone && <span>📞 {phone}</span>}
+            {location && <span>📍 {location}</span>}
+            <span className="opacity-70">{profileUrl}</span>
+          </div>
         </div>
       </div>
 

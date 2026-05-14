@@ -433,7 +433,8 @@ export const useOnboardingStore = create<OnboardingState>()(
         set({ isProcessing: true, error: null });
 
         try {
-          await apiService.post("/user", {
+          // /ai/onboard/save is auth-protected and saves both user + worker profile in one shot
+          await apiService.post("/ai/onboard/save", {
             body: confirmationFields,
           });
 
