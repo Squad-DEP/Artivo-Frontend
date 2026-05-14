@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Briefcase, Loader2, MapPin, DollarSign, ChevronDown } from "lucide-react";
+import { Briefcase, Loader2, MapPin, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -171,7 +171,7 @@ export function PostJobDialog({ trigger, onPosted }: PostJobDialogProps) {
               <div className="space-y-1.5">
                 <Label htmlFor="budget">Budget (₦)</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₦</span>
                   <Input
                     id="budget"
                     type="number"

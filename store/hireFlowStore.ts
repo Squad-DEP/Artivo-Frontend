@@ -16,9 +16,12 @@ export type HireFlowStep =
   | "idle"
   | "requesting"
   | "hiring"
+  | "choosing_payment"
   | "paying"
   | "verifying"
   | "complete";
+
+export type PaymentMethod = "online" | "offline";
 
 export interface CreateJobRequestPayload {
   job_type_id: string;
@@ -44,9 +47,11 @@ export interface HireFlowState {
   /** Set when hire fails with 402 — contains available_balance and required amount */
   insufficientBalance: { available: number; required: number } | null;
 
+  paymentMethod: PaymentMethod;
+
   // Actions
   createJobRequest: (data: CreateJobRequestPayload) => Promise<boolean>;
-  hireWorker: (jobRequestId: string, workerId: string, amount: number) => Promise<boolean>;
+  hireWorker: (jobRequestId: string, workerId: string, amount: number, paymentMethod: PaymentMethod) => Promise<boolean>;
   openSquadModal: (email: string, amount: number, jobId: string) => void;
   verifyPayment: (jobId: string, transactionReference: string, amount: number) => Promise<boolean>;
   reset: () => void;
@@ -130,6 +135,7 @@ const initialState = {
   validationErrors: {} as Record<string, string>,
   step: "idle" as HireFlowStep,
   insufficientBalance: null as HireFlowState["insufficientBalance"],
+  paymentMethod: "online" as PaymentMethod,
 };
 
 export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
@@ -172,32 +178,36 @@ export const useHireFlowStore = create<HireFlowState>()((set, get) => ({
     }
   },
 
-  hireWorker: async (jobRequestId: string, workerId: string, amount: number) => {
-    set({ isLoading: true, error: null, validationErrors: {}, insufficientBalance: null, step: "hiring" });
+  hireWorker: async (jobRequestId: string, workerId: string, amount: number, paymentMethod: PaymentMethod) => {
+    set({ isLoading: true, error: null, validationErrors: {}, insufficientBalance: null, step: "hiring", paymentMethod });
 
     try {
-      const payload: HirePayload = { job_request_id: jobRequestId, worker_id: workerId, amount };
+      const payload: HirePayload = {
+        job_request_id: jobRequestId,
+        worker_id: workerId,
+        amount,
+        payment_method: paymentMethod,
+      };
       const result = await postWithValidation<HireResponse>("/customer/hire", payload);
 
       if (result.data) {
-        // Hire deducted from balance and funded escrow — no Squad checkout needed
-        set({ job: { id: result.data.job.id, status: result.data.job.status }, isLoading: false, step: "complete" });
+        const job = { id: result.data.job.id, status: result.data.job.status };
+        set({ job, isLoading: false });
+
+        if (paymentMethod === "offline") {
+          // Offline: job is immediately in_progress — no payment needed
+          set({ step: "complete" });
+        } else {
+          // Online: open Squad checkout for this job
+          set({ step: "paying" });
+        }
         return true;
       }
 
       set({ error: result.errorMessage, validationErrors: result.validationErrors, isLoading: false, step: "hiring" });
       return false;
     } catch (error: any) {
-      if (error?.statusCode === 402) {
-        set({
-          insufficientBalance: { available: error.availableBalance, required: error.required },
-          error: error.message,
-          isLoading: false,
-          step: "hiring",
-        });
-      } else {
-        set({ error: error instanceof Error ? error.message : "Failed to hire worker", isLoading: false, step: "hiring" });
-      }
+      set({ error: error instanceof Error ? error.message : "Failed to hire worker", isLoading: false, step: "hiring" });
       return false;
     }
   },

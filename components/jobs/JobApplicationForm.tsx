@@ -80,14 +80,8 @@ export function JobApplicationForm({
     }
   };
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
+  const formatBudget = (value: number | null | undefined): string =>
+    !value || value === 0 ? "Negotiable" : `₦${Number(value).toLocaleString("en-NG")}`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -100,7 +94,7 @@ export function JobApplicationForm({
         <div className="rounded-md bg-muted/50 p-3">
           <p className="text-xs text-muted-foreground">Budget Range</p>
           <p className="text-sm font-medium text-foreground">
-            {formatCurrency(budgetMin)} – {formatCurrency(budgetMax)}
+            {formatBudget(budgetMin)} – {formatBudget(budgetMax)}
           </p>
         </div>
 

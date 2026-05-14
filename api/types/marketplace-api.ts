@@ -44,6 +44,7 @@ export interface HirePayload {
   job_request_id: string;
   worker_id: string;
   amount: number;
+  payment_method?: "online" | "offline";
 }
 
 /** POST /customer/hire response */
@@ -144,6 +145,27 @@ export interface VirtualAccountResponse {
     balance: number;
     total_deposited: number;
   };
+}
+
+/** Advance payment request (partial escrow release for materials) */
+export interface AdvanceRequest {
+  id: string;
+  job_id: string;
+  worker_id: string;
+  customer_id: string;
+  amount: number;
+  reason: string | null;
+  status: "pending" | "approved" | "rejected";
+  requested_at: string;
+  approved_at: string | null;
+}
+
+export interface AdvanceRequestsResponse {
+  advance_requests: AdvanceRequest[];
+}
+
+export interface AdvanceRequestResponse {
+  advance_request: AdvanceRequest;
 }
 
 /** GET /profile/:slug response */

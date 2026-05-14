@@ -37,8 +37,10 @@ export default function JobsListPage() {
     fetchJobs();
   }, [fetchJobs]);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(value);
+  const formatBudget = (value: number | null | undefined) =>
+    !value || value === 0
+      ? "Negotiable"
+      : `₦${Number(value).toLocaleString("en-NG")}`;
 
   if (isLoading && jobs.length === 0) {
     return (
@@ -134,7 +136,7 @@ export default function JobsListPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-semibold text-gray-900">
-                      {formatCurrency(job.budget_max)}
+                      {formatBudget(job.budget_max)}
                     </p>
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${status.className}`}>
                       {status.icon}

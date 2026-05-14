@@ -51,7 +51,7 @@ export default function AuthLoginPage() {
         if (!userType) {
           // No role found, send to profile selection
           router.push("/register/profile");
-        } else if (!user?.onboarding_completed) {
+        } else if (!user?.onboarded && !user?.onboarding_completed) {
           // Role set but onboarding not done
           if (userType === "worker") {
             router.push("/onboarding/worker");

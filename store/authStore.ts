@@ -210,8 +210,11 @@ export const useAuthStore = create<AuthState>()(
               user_metadata: {
                 full_name: payload.fullName || payload.name,
                 user_type: payload.role as UserType,
+                onboarding_completed: payload.onboarded ?? false,
               },
               user_type: payload.role as UserType,
+              onboarded: payload.onboarded ?? false,
+              onboarding_completed: payload.onboarded ?? false,
             };
 
             set((state) => ({

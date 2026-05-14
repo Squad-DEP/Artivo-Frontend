@@ -13,7 +13,7 @@ import {
   Briefcase,
   FileText,
   MapPin,
-  DollarSign,
+  Banknote,
   Calendar,
   Layers,
   Check,
@@ -95,7 +95,7 @@ export type CreateJobFormValues = z.infer<typeof createJobSchema>;
 const STEPS = [
   { id: "basics", label: "Basics", icon: Briefcase },
   { id: "details", label: "Details", icon: FileText },
-  { id: "budget", label: "Budget", icon: DollarSign },
+  { id: "budget", label: "Budget", icon: Banknote },
   { id: "stages", label: "Stages", icon: Layers },
   { id: "review", label: "Review", icon: Check },
 ] as const;
@@ -717,7 +717,11 @@ function StepReview({ form }: { form: ReturnType<typeof useForm<CreateJobFormVal
         />
         <ReviewRow
           label="Budget"
-          value={`₦${values.budget_min?.toLocaleString()} – ₦${values.budget_max?.toLocaleString()}`}
+          value={
+            !values.budget_min && !values.budget_max
+              ? "Negotiable"
+              : `₦${values.budget_min?.toLocaleString("en-NG") ?? 0} – ₦${values.budget_max?.toLocaleString("en-NG") ?? 0}`
+          }
         />
         {values.deadline && (
           <ReviewRow

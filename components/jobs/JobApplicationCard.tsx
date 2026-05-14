@@ -55,14 +55,8 @@ export function JobApplicationCard({
     "accept" | "reject" | null
   >(null);
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
+  const formatCurrency = (value: number): string =>
+    `₦${Number(value).toLocaleString("en-NG")}`;
 
   const formatDate = (dateStr: string): string => {
     return new Date(dateStr).toLocaleDateString("en-NG", {

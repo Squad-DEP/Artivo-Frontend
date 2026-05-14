@@ -12,12 +12,14 @@ import type {
   JobStage,
 } from "@/api/types/job";
 import type { CreateReviewRequest } from "@/api/types/reputation";
+import type { AdvanceRequest, AdvanceRequestsResponse, AdvanceRequestResponse } from "@/api/types/marketplace-api";
 
 interface JobState {
   // State
   jobs: Job[];
   currentJob: Job | null;
   applications: JobApplication[];
+  advanceRequests: AdvanceRequest[];
   workerStats: WorkerJobStats | null;
   customerStats: CustomerJobStats | null;
   isLoading: boolean;
@@ -52,6 +54,10 @@ interface JobState {
   ) => Promise<boolean>;
   submitReview: (data: CreateReviewRequest) => Promise<boolean>;
   fetchStats: () => Promise<void>;
+  fetchAdvanceRequests: (jobId: string) => Promise<void>;
+  requestAdvance: (jobId: string, amount: number, reason?: string) => Promise<boolean>;
+  approveAdvance: (requestId: string) => Promise<boolean>;
+  rejectAdvance: (requestId: string) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -96,6 +102,7 @@ export const useJobStore = create<JobState>()((set, get) => ({
   jobs: [],
   currentJob: null,
   applications: [],
+  advanceRequests: [],
   workerStats: null,
   customerStats: null,
   isLoading: false,
@@ -437,6 +444,78 @@ export const useJobStore = create<JobState>()((set, get) => ({
             : "Failed to fetch job stats",
         isLoading: false,
       });
+    }
+  },
+
+  fetchAdvanceRequests: async (jobId: string) => {
+    try {
+      const data = await apiService.get<AdvanceRequestsResponse>(
+        `/customer/advance-requests/${jobId}`
+      );
+      set({ advanceRequests: data.advance_requests });
+    } catch {
+      // non-critical
+    }
+  },
+
+  requestAdvance: async (jobId: string, amount: number, reason?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await apiService.post<AdvanceRequestResponse>("/worker/request-advance", {
+        body: { job_id: jobId, amount, reason },
+      });
+      set({ isLoading: false });
+      return true;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to request advance",
+        isLoading: false,
+      });
+      return false;
+    }
+  },
+
+  approveAdvance: async (requestId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await apiService.post<AdvanceRequestResponse>(
+        `/customer/approve-advance/${requestId}`
+      );
+      set((state) => ({
+        advanceRequests: state.advanceRequests.map((r) =>
+          r.id === requestId ? data.advance_request : r
+        ),
+        isLoading: false,
+      }));
+      return true;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to approve advance",
+        isLoading: false,
+      });
+      return false;
+    }
+  },
+
+  rejectAdvance: async (requestId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await apiService.post<AdvanceRequestResponse>(
+        `/customer/reject-advance/${requestId}`
+      );
+      set((state) => ({
+        advanceRequests: state.advanceRequests.map((r) =>
+          r.id === requestId ? data.advance_request : r
+        ),
+        isLoading: false,
+      }));
+      return true;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to reject advance",
+        isLoading: false,
+      });
+      return false;
     }
   },
 

@@ -9,7 +9,7 @@ import {
   MicOff,
   User,
   Briefcase,
-  DollarSign,
+  Banknote,
   Clock,
   MapPin,
   FileText,
@@ -34,7 +34,7 @@ interface FieldConfig {
 const FIELDS: FieldConfig[] = [
   { key: "fullName", label: "Full Name", placeholder: "Waiting for input...", icon: <User className="w-4 h-4" />, colSpan: "half" },
   { key: "skills", label: "Services Offered", placeholder: "Waiting for input...", icon: <Briefcase className="w-4 h-4" />, colSpan: "half" },
-  { key: "avgPay", label: "Hourly/Daily Rate", placeholder: "Waiting for input...", icon: <DollarSign className="w-4 h-4" />, colSpan: "half" },
+  { key: "avgPay", label: "Hourly/Daily Rate", placeholder: "Waiting for input...", icon: <Banknote className="w-4 h-4" />, colSpan: "half" },
   { key: "experience", label: "Experience", placeholder: "Waiting for input...", icon: <Clock className="w-4 h-4" />, colSpan: "half" },
   { key: "location", label: "Location", placeholder: "Waiting for input...", icon: <MapPin className="w-4 h-4" />, colSpan: "half" },
   { key: "bio", label: "About You", placeholder: "Waiting for input...", icon: <FileText className="w-4 h-4" />, colSpan: "full" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { User, MapPin, DollarSign, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft } from "lucide-react";
+import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/api/api-service";
 
@@ -27,7 +27,9 @@ interface Proposal {
   created_at: string;
 }
 
-const NGN = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 });
+const formatBudget = (v: number | null | undefined) =>
+  !v || v === 0 ? "Negotiable" : `₦${Number(v).toLocaleString("en-NG")}`;
+const formatAmount = (v: number) => `₦${Number(v).toLocaleString("en-NG")}`;
 
 export function JobProposalsView() {
   const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
@@ -103,7 +105,7 @@ export function JobProposalsView() {
           <p className="text-sm text-muted-foreground line-clamp-2">{selectedJob.description}</p>
           <div className="flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground">
             {selectedJob.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{selectedJob.location}</span>}
-            {selectedJob.budget && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />Budget: {NGN.format(selectedJob.budget)}</span>}
+            <span className="flex items-center gap-1"><Banknote className="w-3.5 h-3.5" />Budget: {formatBudget(selectedJob.budget)}</span>
           </div>
         </div>
 
@@ -148,7 +150,7 @@ export function JobProposalsView() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-foreground truncate">{proposal.worker_name}</p>
                   <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-sm font-semibold text-primary">{NGN.format(proposal.proposed_amount)}</span>
+                    <span className="text-sm font-semibold text-primary">{formatAmount(proposal.proposed_amount)}</span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {new Date(proposal.created_at).toLocaleDateString()}

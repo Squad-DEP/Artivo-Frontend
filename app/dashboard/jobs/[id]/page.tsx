@@ -7,7 +7,7 @@ import {
   Briefcase,
   MapPin,
   Calendar,
-  DollarSign,
+  Banknote,
   Clock,
   Users,
   BarChart3,
@@ -22,6 +22,7 @@ import { JobApplicationCard } from "@/components/jobs/JobApplicationCard";
 import { JobApplicationForm } from "@/components/jobs/JobApplicationForm";
 import { ReviewDialog } from "@/components/jobs/ReviewDialog";
 import { JobCompletionPanel } from "@/components/jobs/JobCompletionPanel";
+import { AdvanceRequestPanel } from "@/components/jobs/AdvanceRequestPanel";
 import { RatingDialog } from "@/components/jobs/RatingDialog";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
 import { useJobStore } from "@/store/jobStore";
@@ -212,14 +213,11 @@ export default function JobDetailPage() {
   };
 
   // Format helpers
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
+  const formatCurrency = (value: number): string =>
+    `₦${Number(value).toLocaleString("en-NG")}`;
+
+  const formatBudget = (value: number | null | undefined): string =>
+    !value || value === 0 ? "Negotiable" : formatCurrency(value);
 
   const formatDate = (dateStr: string): string => {
     return new Date(dateStr).toLocaleDateString("en-NG", {
@@ -320,9 +318,9 @@ export default function JobDetailPage() {
       {/* Job Info Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <InfoCard
-          icon={<DollarSign className="size-4" />}
+          icon={<Banknote className="size-4" />}
           label="Budget"
-          value={`${formatCurrency(currentJob.budget_min)} – ${formatCurrency(currentJob.budget_max)}`}
+          value={`${formatBudget(currentJob.budget_min)} – ${formatBudget(currentJob.budget_max)}`}
         />
         {currentJob.deadline && (
           <InfoCard
@@ -375,6 +373,15 @@ export default function JobDetailPage() {
             />
           </section>
         )}
+
+      {/* Advance payment panel — visible when job is in progress */}
+      {(currentJob.status === "in_progress" || currentJob.status === "worker_completed") && (
+        <AdvanceRequestPanel
+          jobId={currentJob.id}
+          role={isCustomer ? "customer" : "worker"}
+          jobStatus={currentJob.status}
+        />
+      )}
 
       {/* Mutual Job Completion Panel — visible when job is in progress or partially/fully completed */}
       {showCompletionPanel && (
