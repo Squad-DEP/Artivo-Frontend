@@ -140,7 +140,7 @@ export interface VirtualAccountResponse {
     account_name: string;
     bank_name: string;
     bank_code: string;
-    customer_identifier: string;
+    customer_identifier?: string;
     balance: number;
     total_deposited: number;
   };

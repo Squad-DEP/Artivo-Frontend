@@ -47,6 +47,8 @@ interface PaymentState {
 
   fetchVirtualAccount: () => Promise<void>;
   ensureSetup: (kyc: { bvn: string; dob: string; gender: "1" | "2"; address: string; first_name: string; last_name: string; phone: string }) => Promise<void>;
+  claimAccount: (accountNumber: string) => Promise<void>;
+  simulateDeposit: (amount: number) => Promise<void>;
   fetchTransactions: () => Promise<void>;
   clearError: () => void;
   clearVirtualAccountError: () => void;
@@ -76,7 +78,7 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
           account_name: va.account_name,
           bank_name: va.bank_name,
           bank_code: va.bank_code,
-          customer_identifier: va.customer_identifier,
+          customer_identifier: va.customer_identifier || "",
           balance: va.balance ?? 0,
           total_deposited: va.total_deposited ?? 0,
           status: "active",
@@ -110,7 +112,7 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
           account_name: va.account_name,
           bank_name: va.bank_name,
           bank_code: va.bank_code,
-          customer_identifier: va.customer_identifier,
+          customer_identifier: va.customer_identifier || "",
           balance: va.balance ?? 0,
           total_deposited: va.total_deposited ?? 0,
           status: "active",
@@ -125,6 +127,58 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
           error instanceof Error
             ? error.message
             : "Failed to create virtual account",
+        isLoading: false,
+      });
+    }
+  },
+
+  claimAccount: async (accountNumber) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await apiService.post<VirtualAccountResponse>(
+        "/account/claim",
+        { body: { account_number: accountNumber } }
+      );
+      const va = data.virtual_account;
+      set({
+        virtualAccount: {
+          account_number: va.account_number,
+          account_name: va.account_name,
+          bank_name: va.bank_name,
+          bank_code: va.bank_code,
+          customer_identifier: va.customer_identifier || "",
+          balance: va.balance ?? 0,
+          total_deposited: va.total_deposited ?? 0,
+          status: "active",
+        },
+        needsSetup: false,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to claim account",
+        isLoading: false,
+      });
+    }
+  },
+
+  simulateDeposit: async (amount) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await apiService.post<{ balance: number; total_deposited: number; msg: string }>(
+        "/account/simulate-deposit",
+        { body: { amount } }
+      );
+      set((state) => ({
+        virtualAccount: state.virtualAccount
+          ? { ...state.virtualAccount, balance: data.balance, total_deposited: data.total_deposited }
+          : state.virtualAccount,
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Deposit failed",
         isLoading: false,
       });
     }

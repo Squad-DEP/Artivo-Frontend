@@ -104,7 +104,9 @@ class ApiService {
       // Try to get error message from response body
       try {
         const errorData = await response.json();
-        if (errorData.message) {
+        if (errorData.msg) {
+          errorMessage = errorData.msg;
+        } else if (errorData.message) {
           errorMessage = errorData.message;
         } else if (errorData.error) {
           errorMessage = errorData.error;
