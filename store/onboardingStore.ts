@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiService } from "@/api/api-service";
+import { useAuthStore } from "@/store/authStore";
 import type { CreateWorkerProfileRequest } from "@/api/types/worker";
 import type {
   VoiceOnboardPayload,
@@ -437,6 +438,10 @@ export const useOnboardingStore = create<OnboardingState>()(
           await apiService.post("/ai/onboard/save", {
             body: confirmationFields,
           });
+
+          // Mark onboarded in Supabase metadata + refresh user from backend (sets onboarded=true)
+          const { completeOnboarding, fetchUser } = useAuthStore.getState();
+          await Promise.all([completeOnboarding(), fetchUser()]);
 
           set({
             isProcessing: false,

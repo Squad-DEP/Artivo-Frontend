@@ -72,6 +72,8 @@ interface User {
   // Convenience accessors for Artivo user state
   user_type?: UserType;
   onboarding_completed?: boolean;
+  onboarded?: boolean;
+  phone?: string | null;
 }
 
 interface LoadingStates {
@@ -386,10 +388,14 @@ export const useAuthStore = create<AuthState>()(
             id: data.id,
             email: data.email,
             user_type: data.role as UserType,
+            onboarded: data.onboarded ?? false,
+            onboarding_completed: data.onboarded ?? false,
+            phone: data.phone ?? null,
             user_metadata: {
               ...currentUser.user_metadata,
               full_name: data.fullName || data.full_name,
               user_type: data.role as UserType,
+              onboarding_completed: data.onboarded ?? false,
             },
           };
 
@@ -1120,6 +1126,7 @@ export const useAuthStore = create<AuthState>()(
       isOnboardingComplete: (): boolean => {
         const { user } = get();
         return (
+          user?.onboarded ||
           user?.onboarding_completed ||
           user?.user_metadata?.onboarding_completed ||
           false
