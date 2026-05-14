@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft } from "lucide-react";
+import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/api/api-service";
 
@@ -32,6 +33,7 @@ const formatBudget = (v: number | null | undefined) =>
 const formatAmount = (v: number) => `₦${Number(v).toLocaleString("en-NG")}`;
 
 export function JobProposalsView() {
+  const router = useRouter();
   const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobRequest | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -189,7 +191,17 @@ export function JobProposalsView() {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-foreground">My Job Posts</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-foreground">My Job Posts</h3>
+        <Button
+          onClick={() => router.push("/dashboard/jobs/new")}
+          className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white gap-2"
+          size="sm"
+        >
+          <Plus className="w-4 h-4" />
+          Create Job
+        </Button>
+      </div>
 
       {error && (
         <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{error}</p>
@@ -202,8 +214,15 @@ export function JobProposalsView() {
       )}
 
       {!isLoadingJobs && jobRequests.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+        <div className="rounded-xl border border-dashed border-border p-8 text-center space-y-4">
           <p className="text-sm text-muted-foreground">You haven't posted any jobs yet.</p>
+          <Button
+            onClick={() => router.push("/dashboard/jobs/new")}
+            className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Create Your First Job
+          </Button>
         </div>
       )}
 

@@ -116,6 +116,30 @@ export interface TextOnboardPayload {
   context: Array<{ role: string; content: string }>;
 }
 
+/** POST /ai/extract-job/voice request */
+export interface ExtractJobVoicePayload {
+  audioData: string; // base64
+}
+
+/** POST /ai/extract-job/text request */
+export interface ExtractJobTextPayload {
+  text: string;
+}
+
+/** POST /ai/extract-job/voice & /ai/extract-job/text response */
+export interface ExtractJobResponse {
+  success: boolean;
+  data: {
+    job_type_id: string;
+    title: string;
+    description: string;
+    location?: string;
+    budget?: number;
+    confidence?: string;
+    language_detected?: string;
+  };
+}
+
 /** GET /matching/job-types response */
 export interface JobTypesResponse {
   id: string;
