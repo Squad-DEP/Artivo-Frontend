@@ -13,18 +13,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Award,
-  Plus,
-  Trash2,
-  Loader2,
-  FileText,
-  ExternalLink,
-} from "lucide-react";
+import { Award, Plus, Trash2, Loader2, FileText, ExternalLink } from "lucide-react";
 import type { DocumentRecord } from "@/api/types/document";
 
 const CERT_TYPES = ["certificate", "other"] as const;
 type CertDocumentType = (typeof CERT_TYPES)[number];
+
+const MAX_DESCRIPTION_WORDS = 50;
+
+function countWords(text: string): number {
+  return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+}
 
 export function CertificatesSection() {
   const {
@@ -42,11 +41,15 @@ export function CertificatesSection() {
   const [open, setOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [customName, setCustomName] = useState("");
+  const [description, setDescription] = useState("");
   const [docType, setDocType] = useState<CertDocumentType>("certificate");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const wordCount = countWords(description);
+  const overLimit = wordCount > MAX_DESCRIPTION_WORDS;
+
   useEffect(() => {
-    fetchDocuments("certificate");
+    fetchDocuments();
   }, [fetchDocuments]);
 
   const certs = documents.filter((d) =>
@@ -56,24 +59,36 @@ export function CertificatesSection() {
   function resetForm() {
     setPendingFile(null);
     setCustomName("");
+    setDescription("");
     setDocType("certificate");
     clearError();
   }
 
+  function handleDescriptionChange(value: string) {
+    // Allow typing but block if already over limit and user is adding words
+    const words = value.trim() === "" ? [] : value.trim().split(/\s+/);
+    if (words.length <= MAX_DESCRIPTION_WORDS) {
+      setDescription(value);
+    } else {
+      // Allow editing within existing text (backspace, etc.) but block new words past limit
+      setDescription(value);
+    }
+  }
+
   async function handleUpload() {
-    if (!pendingFile) return;
+    if (!pendingFile || overLimit) return;
     clearError();
 
     const result = await uploadDocument({
       file: pendingFile,
       documentType: docType,
       fileName: customName.trim() || pendingFile.name,
+      description: description.trim() || undefined,
     });
 
     if (result) {
       setOpen(false);
       resetForm();
-      // Refresh both certificate and other types
       fetchDocuments();
     }
   }
@@ -116,7 +131,7 @@ export function CertificatesSection() {
             </DialogHeader>
 
             <div className="space-y-4 pt-1">
-              {/* Custom name */}
+              {/* Name */}
               <div className="space-y-1.5">
                 <Label htmlFor="doc-name">Document Name</Label>
                 <Input
@@ -128,7 +143,27 @@ export function CertificatesSection() {
                   disabled={isUploading}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Give it any name you'd like. Leave blank to use the filename.
+                  Leave blank to use the filename.
+                </p>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <Label htmlFor="doc-desc">
+                  Description{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <textarea
+                  id="doc-desc"
+                  rows={3}
+                  placeholder="Briefly describe what this document is for, what it proves, or which project it relates to…"
+                  value={description}
+                  onChange={(e) => handleDescriptionChange(e.target.value)}
+                  disabled={isUploading}
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 transition-colors"
+                />
+                <p className={`text-xs text-right ${overLimit ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                  {wordCount} / {MAX_DESCRIPTION_WORDS} words
                 </p>
               </div>
 
@@ -153,7 +188,7 @@ export function CertificatesSection() {
                 </div>
               </div>
 
-              {/* File picker */}
+              {/* File */}
               <div className="space-y-1.5">
                 <Label>File</Label>
                 <FileUpload
@@ -165,9 +200,7 @@ export function CertificatesSection() {
                 />
               </div>
 
-              {error && (
-                <p className="text-xs text-destructive">{error}</p>
-              )}
+              {error && <p className="text-xs text-destructive">{error}</p>}
 
               <div className="flex justify-end gap-2 pt-1">
                 <Button
@@ -179,7 +212,7 @@ export function CertificatesSection() {
                 </Button>
                 <Button
                   onClick={handleUpload}
-                  disabled={!pendingFile || isUploading}
+                  disabled={!pendingFile || isUploading || overLimit}
                 >
                   {isUploading ? (
                     <>
@@ -214,9 +247,9 @@ export function CertificatesSection() {
           {certs.map((doc) => (
             <li
               key={doc.id}
-              className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3"
+              className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3"
             >
-              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
                 <FileText className="w-4 h-4 text-muted-foreground" />
               </div>
 
@@ -232,6 +265,11 @@ export function CertificatesSection() {
                     ? ` · ${(doc.fileSize / 1024 / 1024).toFixed(1)} MB`
                     : ""}
                 </p>
+                {doc.description && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                    {doc.description}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-1 shrink-0">

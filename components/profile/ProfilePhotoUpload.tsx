@@ -4,21 +4,38 @@ import { useState } from "react";
 import { useDocumentStore } from "@/store/documentStore";
 import { FileUpload } from "@/components/uploads/FileUpload";
 import { Button } from "@/components/ui/button";
-import { Camera, CheckCircle, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Camera, CheckCircle, Loader2, Pencil } from "lucide-react";
+import { apiService } from "@/api/api-service";
 
 interface ProfilePhotoUploadProps {
-  currentPhotoUrl?: string;
+  photoUrl?: string | null;
+  name: string;
   onUploaded?: (url: string) => void;
 }
 
 export function ProfilePhotoUpload({
-  currentPhotoUrl,
+  photoUrl,
+  name,
   onUploaded,
 }: ProfilePhotoUploadProps) {
   const { uploadDocument, isUploading, uploadProgress, error, clearError } =
     useDocumentStore();
+  const [open, setOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [done, setDone] = useState(false);
+
+  function handleOpen() {
+    setPendingFile(null);
+    setDone(false);
+    clearError();
+    setOpen(true);
+  }
 
   async function handleUpload() {
     if (!pendingFile) return;
@@ -32,71 +49,100 @@ export function ProfilePhotoUpload({
     });
 
     if (result) {
+      try {
+        await apiService.patch("/worker/profile/photo", {
+          body: { photo_url: result.fileUrl },
+        });
+      } catch {
+        // Non-critical
+      }
       setDone(true);
-      setPendingFile(null);
       onUploaded?.(result.fileUrl);
     }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-muted border border-border shrink-0">
-          {currentPhotoUrl ? (
-            <img
-              src={currentPhotoUrl}
-              alt="Profile"
-              className="w-full h-full object-cover"
-            />
+    <>
+      {/* Avatar — whole thing is clickable */}
+      <div className="relative w-fit cursor-pointer group" onClick={handleOpen}>
+        <div className="w-20 h-20 rounded-full overflow-hidden bg-[var(--orange)]/10 border-2 border-white shadow-sm flex items-center justify-center">
+          {photoUrl ? (
+            <img src={photoUrl} alt={name} className="w-full h-full object-cover group-hover:brightness-90 transition-all" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Camera className="w-7 h-7 text-muted-foreground" />
-            </div>
+            <Camera className="w-7 h-7 text-[var(--orange)]" />
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground">Profile Photo</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            JPG, PNG or WebP. Goes to your public profile.
-          </p>
+        <div
+          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center group-hover:bg-gray-50 transition-colors"
+          title="Edit photo"
+        >
+          <Pencil className="w-3.5 h-3.5 text-gray-600" />
         </div>
       </div>
 
-      <FileUpload
-        accept="image/jpeg,image/png,image/webp"
-        maxSizeMb={25}
-        onFile={setPendingFile}
-        disabled={isUploading}
-        preview
-      />
+      {/* Dialog */}
+      <Dialog open={open} onOpenChange={(v) => { if (!isUploading) setOpen(v); }}>
+        <DialogContent className="sm:max-w-[50vw]">
+          <DialogHeader>
+            <DialogTitle>Profile Photo</DialogTitle>
+          </DialogHeader>
 
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+          <div className="space-y-4 pt-1">
+            {/* Current photo — large display */}
+            {photoUrl && !pendingFile && (
+              <div className="flex justify-center">
+                <img
+                  src={photoUrl}
+                  alt={name}
+                  className="w-1/2 aspect-square rounded-2xl object-cover border border-border"
+                />
+              </div>
+            )}
 
-      {done && (
-        <div className="flex items-center gap-2 text-sm text-green-600">
-          <CheckCircle className="w-4 h-4" />
-          Photo uploaded successfully
-        </div>
-      )}
+            <FileUpload
+              accept="image/jpeg,image/png,image/webp"
+              maxSizeMb={25}
+              onFile={(f) => { setDone(false); setPendingFile(f); }}
+              disabled={isUploading}
+              preview
+            />
 
-      {pendingFile && !done && (
-        <Button
-          onClick={handleUpload}
-          disabled={isUploading}
-          className="w-full sm:w-auto"
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Uploading… {uploadProgress}%
-            </>
-          ) : (
-            "Upload Photo"
-          )}
-        </Button>
-      )}
-    </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+
+            {done && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle className="w-4 h-4" />
+                Photo updated
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={isUploading}
+              >
+                {done ? "Close" : "Cancel"}
+              </Button>
+              {!done && (
+                <Button
+                  onClick={handleUpload}
+                  disabled={!pendingFile || isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {uploadProgress}%
+                    </>
+                  ) : (
+                    photoUrl ? "Upload new" : "Upload"
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

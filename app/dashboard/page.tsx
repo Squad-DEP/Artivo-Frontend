@@ -7,6 +7,7 @@ import { useReputationStore } from "@/store/reputationStore";
 import { useCreditStore } from "@/store/creditStore";
 import { useJobStore } from "@/store/jobStore";
 import { useOAuthRedirect } from "@/hooks/useOAuthRedirect";
+import { PostJobDialog } from "@/components/customer/PostJobDialog";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -442,13 +443,16 @@ function CustomerDashboard({ userName }: { userName: string }) {
           </h1>
           <p className="text-gray-500 mt-1">Find skilled artisans for any job</p>
         </div>
-        <Button
-          onClick={() => router.push("/marketplace")}
-          className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
-        >
-          <Search className="w-4 h-4 mr-2" />
-          Find Artisans
-        </Button>
+        <div className="flex gap-2">
+          <PostJobDialog />
+          <Button
+            onClick={() => router.push("/marketplace")}
+            variant="outline"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Find Artisans
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -469,22 +473,24 @@ function CustomerDashboard({ userName }: { userName: string }) {
         >
           <h2 className="text-lg font-semibold mb-4">Get Started</h2>
           <p className="text-sm text-gray-500 mb-6">
-            Browse the marketplace to find and hire skilled artisans near you.
+            Post a job for artisans to apply, or browse the marketplace to hire directly.
           </p>
           <div className="space-y-3">
+            <PostJobDialog
+              trigger={
+                <Button className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+                  <Briefcase className="w-4 h-4 mr-2" />
+                  Post a Job
+                </Button>
+              }
+            />
             <Button
-              className="w-full bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white"
+              className="w-full"
+              variant="outline"
               onClick={() => router.push("/marketplace")}
             >
               <Search className="w-4 h-4 mr-2" />
               Browse Artisans
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => router.push("/dashboard/payments")}
-            >
-              View Payment History
             </Button>
           </div>
         </motion.div>

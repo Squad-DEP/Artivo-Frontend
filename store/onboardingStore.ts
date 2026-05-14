@@ -322,16 +322,31 @@ export const useOnboardingStore = create<OnboardingState>()(
             body: payload,
           });
 
-          // Map AI response fields to confirmationFields
-          const { fullName, skills, bio, experience, avgPay, location } = response.data;
-          const confirmationFields: Record<string, string> = {
-            fullName,
-            skills: Array.isArray(skills) ? skills.join(", ") : String(skills),
-            bio,
-            experience,
-            avgPay,
-            location,
-          };
+          // Map AI response fields to confirmationFields, dropping nulls/undefined
+          const raw = response.data as Record<string, unknown>;
+          const confirmationFields: Record<string, string> = {};
+
+          if (role === "worker") {
+            const { profession, skills, yearsOfExperience, cityLocation, expectedHourlyRate } = raw as {
+              profession?: string | null;
+              skills?: string | string[] | null;
+              yearsOfExperience?: string | number | null;
+              cityLocation?: string | null;
+              expectedHourlyRate?: string | null;
+            };
+            if (profession) confirmationFields.fullName = profession;
+            if (skills != null) confirmationFields.skills = Array.isArray(skills) ? skills.join(", ") : String(skills);
+            if (yearsOfExperience != null) confirmationFields.experience = String(yearsOfExperience);
+            if (expectedHourlyRate) confirmationFields.avgPay = expectedHourlyRate;
+            if (cityLocation) confirmationFields.location = cityLocation;
+          } else {
+            const { clientName, serviceRequired } = raw as {
+              clientName?: string | null;
+              serviceRequired?: string | null;
+            };
+            if (clientName) confirmationFields.fullName = clientName;
+            if (serviceRequired) confirmationFields.skills = serviceRequired;
+          }
 
           set({
             confirmationFields,
@@ -362,16 +377,31 @@ export const useOnboardingStore = create<OnboardingState>()(
             body: payload,
           });
 
-          // Map AI response fields to confirmationFields (same shape as voice response)
-          const { fullName, skills, bio, experience, avgPay, location } = response.data;
-          const confirmationFields: Record<string, string> = {
-            fullName,
-            skills: Array.isArray(skills) ? skills.join(", ") : String(skills),
-            bio,
-            experience,
-            avgPay,
-            location,
-          };
+          // Same normalization as voice
+          const raw = response.data as Record<string, unknown>;
+          const confirmationFields: Record<string, string> = {};
+
+          if (role === "worker") {
+            const { profession, skills, yearsOfExperience, cityLocation, expectedHourlyRate } = raw as {
+              profession?: string | null;
+              skills?: string | string[] | null;
+              yearsOfExperience?: string | number | null;
+              cityLocation?: string | null;
+              expectedHourlyRate?: string | null;
+            };
+            if (profession) confirmationFields.fullName = profession;
+            if (skills != null) confirmationFields.skills = Array.isArray(skills) ? skills.join(", ") : String(skills);
+            if (yearsOfExperience != null) confirmationFields.experience = String(yearsOfExperience);
+            if (expectedHourlyRate) confirmationFields.avgPay = expectedHourlyRate;
+            if (cityLocation) confirmationFields.location = cityLocation;
+          } else {
+            const { clientName, serviceRequired } = raw as {
+              clientName?: string | null;
+              serviceRequired?: string | null;
+            };
+            if (clientName) confirmationFields.fullName = clientName;
+            if (serviceRequired) confirmationFields.skills = serviceRequired;
+          }
 
           set({
             confirmationFields,

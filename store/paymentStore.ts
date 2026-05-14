@@ -46,7 +46,7 @@ interface PaymentState {
   needsSetup: boolean;
 
   fetchVirtualAccount: () => Promise<void>;
-  ensureSetup: () => Promise<void>;
+  ensureSetup: (kyc: { bvn: string; dob: string; gender: "1" | "2"; address: string }) => Promise<void>;
   fetchTransactions: () => Promise<void>;
   clearError: () => void;
   clearVirtualAccountError: () => void;
@@ -96,12 +96,12 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
     }
   },
 
-  ensureSetup: async () => {
+  ensureSetup: async (kyc) => {
     set({ isLoading: true, error: null });
     try {
       const data = await apiService.post<VirtualAccountResponse>(
         "/account/ensure-setup",
-        {}
+        { body: kyc }
       );
       const va = data.virtual_account;
       set({

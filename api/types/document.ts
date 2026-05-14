@@ -16,6 +16,7 @@ export interface DocumentRecord {
   fileName?: string;
   fileSize?: number;
   mimeType?: string;
+  description?: string;
   uploadStatus: UploadStatus;
   metadata?: Record<string, unknown>;
   createdAt: string;
@@ -27,6 +28,7 @@ export interface InitiateUploadRequest {
   contentType: string;
   documentType: DocumentType;
   fileSize?: number;
+  description?: string;
 }
 
 export interface InitiateUploadResponse {

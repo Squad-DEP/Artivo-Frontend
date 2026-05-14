@@ -19,7 +19,8 @@ export interface DocumentState {
   uploadDocument: (params: {
     file: File;
     documentType: DocumentType;
-    fileName?: string; // custom display name
+    fileName?: string;
+    description?: string;
   }) => Promise<DocumentRecord | null>;
   deleteDocument: (id: string) => Promise<void>;
   clearError: () => void;
@@ -48,7 +49,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     }
   },
 
-  uploadDocument: async ({ file, documentType, fileName }) => {
+  uploadDocument: async ({ file, documentType, fileName, description }) => {
     if (file.size > MAX_FILE_SIZE) {
       set({ error: "File exceeds the 25 MB limit." });
       return null;
@@ -67,6 +68,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
               contentType: file.type,
               documentType,
               fileSize: file.size,
+              description: description || undefined,
             },
           }
         );

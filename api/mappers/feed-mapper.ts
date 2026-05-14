@@ -30,6 +30,7 @@ export function mapFeedWorkerToSummary(worker: BackendFeedWorker): WorkerProfile
   return {
     id: worker.id,
     user_id: worker.id,
+    username: worker.share_slug,
     display_name: worker.display_name || worker.full_name,
     profile_image_url: worker.photo_url,
     skills: worker.skills,
