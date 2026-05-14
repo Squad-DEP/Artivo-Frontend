@@ -22,15 +22,32 @@ export interface Subscription {
   created_at: string;
 }
 
+export interface WorkerProposal {
+  id: string;
+  job_request_id: string;
+  proposed_amount: number;
+  status: "pending" | "accepted" | "rejected";
+  created_at: string;
+  title: string;
+  description: string;
+  location: string;
+  budget: number;
+  job_type: string;
+  customer_name: string;
+  job_request_status: string;
+}
+
 export interface WorkerJobState {
   subscriptions: Subscription[];
   availableJobTypes: JobType[];
   streamedJobs: StreamedJob[];
+  proposals: WorkerProposal[];
   isLoading: boolean;
   error: string | null;
 
   fetchJobTypes: () => Promise<void>;
   fetchJobs: () => Promise<void>;
+  fetchProposals: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
   subscribe: (jobTypeId: string) => Promise<boolean>;
@@ -43,6 +60,7 @@ const initialState = {
   subscriptions: [] as Subscription[],
   availableJobTypes: [] as JobType[],
   streamedJobs: [] as StreamedJob[],
+  proposals: [] as WorkerProposal[],
   isLoading: false,
   error: null as string | null,
 };
@@ -71,6 +89,15 @@ export const useWorkerJobStore = create<WorkerJobState>()((set, get) => ({
       set({ streamedJobs: response.jobs ?? [], error: null });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Failed to fetch jobs" });
+    }
+  },
+
+  fetchProposals: async () => {
+    try {
+      const response = await apiService.get<{ proposals: WorkerProposal[] }>("/worker/proposals");
+      set({ proposals: response.proposals ?? [] });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Failed to fetch proposals" });
     }
   },
 
@@ -124,10 +151,12 @@ export const useWorkerJobStore = create<WorkerJobState>()((set, get) => ({
     try {
       const payload: AcceptJobPayload = { job_request_id: jobRequestId, proposed_amount: proposedAmount };
       await apiService.post<{ msg: string }>("/worker/accept-job", { body: payload });
+      // Remove from available feed, refresh proposals
       set((state) => ({
         streamedJobs: state.streamedJobs.filter((job) => job.id !== jobRequestId),
         isLoading: false,
       }));
+      get().fetchProposals();
       return true;
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to accept job";

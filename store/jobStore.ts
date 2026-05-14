@@ -263,18 +263,12 @@ export const useJobStore = create<JobState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const updatedJob = await apiService.post<Job>(
-        `/jobs/:id/applications/:appId/accept`,
-        {
-          params: { id: jobId, appId: applicationId },
-        }
+      await apiService.post<{ job: unknown; escrow: unknown; requires_payment: boolean }>(
+        `/customer/hire`,
+        { body: { proposal_id: applicationId } }
       );
 
-      const normalizedJob = normalizeSingleStageJob(updatedJob);
-
       set((state) => ({
-        currentJob:
-          state.currentJob?.id === jobId ? normalizedJob : state.currentJob,
         applications: state.applications.map((app) =>
           app.id === applicationId
             ? { ...app, status: "accepted" as const }

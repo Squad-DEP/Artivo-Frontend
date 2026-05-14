@@ -31,7 +31,7 @@ export default function JobsListPage() {
   const { jobs, isLoading, error, fetchJobs, clearError } = useJobStore();
   const { getUserType } = useAuthStore();
   const userType = getUserType();
-  const [tab, setTab] = useState<"jobs" | "posts">("jobs");
+  const [tab, setTab] = useState<"jobs" | "posts">("posts");
 
   useEffect(() => {
     fetchJobs();
@@ -74,16 +74,16 @@ export default function JobsListPage() {
       {userType === "customer" && (
         <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
           <button
-            onClick={() => setTab("jobs")}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "jobs" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            Hired Jobs
-          </button>
-          <button
             onClick={() => setTab("posts")}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "posts" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
           >
             My Posts
+          </button>
+          <button
+            onClick={() => setTab("jobs")}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "jobs" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            Hired Jobs
           </button>
         </div>
       )}
@@ -105,9 +105,9 @@ export default function JobsListPage() {
       )}
 
       {/* Jobs List — shown for workers always, and for customers on "Hired Jobs" tab */}
-      {(userType === "worker" || (userType === "customer" && tab === "jobs")) && jobs.length > 0 ? (
+      {(userType === "worker" || (userType === "customer" && tab === "jobs")) && jobs.filter(j => j.status !== "open").length > 0 ? (
         <div className="space-y-3">
-          {jobs.map((job, index) => {
+          {jobs.filter(j => j.status !== "open").map((job, index) => {
             const status = STATUS_CONFIG[job.status] || STATUS_CONFIG.open;
             return (
               <motion.div
