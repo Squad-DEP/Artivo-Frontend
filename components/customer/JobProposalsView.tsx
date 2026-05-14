@@ -1,0 +1,256 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { User, MapPin, DollarSign, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { apiService } from "@/api/api-service";
+
+interface JobRequest {
+  id: string;
+  title: string;
+  description: string;
+  location: string | null;
+  budget: number | null;
+  status: string;
+  job_type_name: string;
+  proposal_count: number;
+  created_at: string;
+}
+
+interface Proposal {
+  id: string;
+  worker_id: string;
+  worker_name: string;
+  photo_url: string | null;
+  proposed_amount: number;
+  status: string;
+  created_at: string;
+}
+
+const NGN = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 });
+
+export function JobProposalsView() {
+  const [jobRequests, setJobRequests] = useState<JobRequest[]>([]);
+  const [selectedJob, setSelectedJob] = useState<JobRequest | null>(null);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+  const [isLoadingProposals, setIsLoadingProposals] = useState(false);
+  const [hiringId, setHiringId] = useState<string | null>(null);
+  const [hiredProposalIds, setHiredProposalIds] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchJobRequests = useCallback(async () => {
+    setIsLoadingJobs(true);
+    try {
+      const data = await apiService.get<{ job_requests: JobRequest[] }>("/customer/my-job-requests");
+      setJobRequests(data.job_requests ?? []);
+    } catch {
+      setError("Failed to load your job posts.");
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchJobRequests();
+  }, [fetchJobRequests]);
+
+  async function openProposals(job: JobRequest) {
+    setSelectedJob(job);
+    setIsLoadingProposals(true);
+    setProposals([]);
+    try {
+      const data = await apiService.get<{ proposals: Proposal[] }>(`/customer/job-requests/${job.id}/proposals`);
+      setProposals(data.proposals ?? []);
+    } catch {
+      setError("Failed to load proposals.");
+    } finally {
+      setIsLoadingProposals(false);
+    }
+  }
+
+  async function hire(proposalId: string) {
+    setHiringId(proposalId);
+    setError(null);
+    try {
+      await apiService.post("/customer/hire", { body: { proposal_id: proposalId } });
+      setHiredProposalIds((prev) => new Set(prev).add(proposalId));
+      // Refresh job requests to update status
+      fetchJobRequests();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to hire. Please try again.");
+    } finally {
+      setHiringId(null);
+    }
+  }
+
+  if (selectedJob) {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => { setSelectedJob(null); setProposals([]); setError(null); }}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Back to my posts
+        </button>
+
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <h3 className="font-semibold text-foreground">{selectedJob.title}</h3>
+            <StatusBadge status={selectedJob.status} />
+          </div>
+          <p className="text-sm text-muted-foreground line-clamp-2">{selectedJob.description}</p>
+          <div className="flex flex-wrap gap-3 mt-3 text-xs text-muted-foreground">
+            {selectedJob.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{selectedJob.location}</span>}
+            {selectedJob.budget && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />Budget: {NGN.format(selectedJob.budget)}</span>}
+          </div>
+        </div>
+
+        <h4 className="font-semibold text-sm text-foreground">
+          {isLoadingProposals ? "Loading proposals…" : `${proposals.length} Proposal${proposals.length !== 1 ? "s" : ""}`}
+        </h4>
+
+        {error && (
+          <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{error}</p>
+        )}
+
+        {isLoadingProposals && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading proposals…
+          </div>
+        )}
+
+        {!isLoadingProposals && proposals.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center">
+            <p className="text-sm text-muted-foreground">No artisans have applied yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">Check back soon — proposals will appear here.</p>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {proposals.map((proposal) => {
+            const isHired = hiredProposalIds.has(proposal.id) || proposal.status === "accepted";
+            const isRejected = proposal.status === "rejected";
+            const isHiring = hiringId === proposal.id;
+            const jobAssigned = selectedJob.status === "assigned";
+
+            return (
+              <div key={proposal.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {proposal.photo_url
+                    ? <img src={proposal.photo_url} alt={proposal.worker_name} className="w-full h-full object-cover" />
+                    : <User className="w-5 h-5 text-primary" />
+                  }
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-foreground truncate">{proposal.worker_name}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-sm font-semibold text-primary">{NGN.format(proposal.proposed_amount)}</span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(proposal.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="shrink-0">
+                  {isHired ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                      <CheckCircle2 className="w-4 h-4" />Hired
+                    </span>
+                  ) : isRejected ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                      <XCircle className="w-4 h-4" />Rejected
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => hire(proposal.id)}
+                      disabled={isHiring || jobAssigned}
+                      className="gap-1.5"
+                    >
+                      {isHiring ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                      {isHiring ? "Hiring…" : "Hire"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-foreground">My Job Posts</h3>
+
+      {error && (
+        <p className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">{error}</p>
+      )}
+
+      {isLoadingJobs && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+          <Loader2 className="w-4 h-4 animate-spin" />Loading your job posts…
+        </div>
+      )}
+
+      {!isLoadingJobs && jobRequests.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border p-8 text-center">
+          <p className="text-sm text-muted-foreground">You haven't posted any jobs yet.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {jobRequests.map((job) => (
+          <div key={job.id} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <div className="min-w-0">
+                <h4 className="font-medium text-sm text-foreground truncate">{job.title}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{job.description}</p>
+              </div>
+              <StatusBadge status={job.status} />
+            </div>
+
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {job.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.location}</span>}
+                <span className="flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  {job.proposal_count ?? 0} proposal{(job.proposal_count ?? 0) !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openProposals(job)}
+                className="shrink-0"
+              >
+                View Proposals
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; className: string }> = {
+    open: { label: "Open", className: "bg-green-100 text-green-700" },
+    assigned: { label: "Assigned", className: "bg-blue-100 text-blue-700" },
+    completed: { label: "Completed", className: "bg-gray-100 text-gray-600" },
+    cancelled: { label: "Cancelled", className: "bg-red-100 text-red-600" },
+  };
+  const config = map[status] ?? { label: status, className: "bg-gray-100 text-gray-600" };
+  return (
+    <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}>
+      {config.label}
+    </span>
+  );
+}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChevronRight, Loader2, Star, Search } from "lucide-react";
+import { ChevronRight, Loader2, Star, Search, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/marketplace/SearchBar";
 import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
@@ -19,6 +20,7 @@ const QUICK_PROMPTS = [
 ];
 
 export default function MarketplacePage() {
+  const router = useRouter();
   const {
     workers,
     total,
@@ -41,6 +43,13 @@ export default function MarketplacePage() {
       {/* Hero Section - Intent Driven */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[var(--artivo-warm)] via-amber-50/50 to-gray-50 pt-28 pb-6">
         <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
           {/* Hero Content */}
           <div className="text-center max-w-2xl mx-auto mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">

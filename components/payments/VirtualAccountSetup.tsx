@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePaymentStore } from "@/store/paymentStore";
+import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import {
   Loader2,
   ChevronRight,
   BadgeCheck,
+  AlertTriangle,
 } from "lucide-react";
 
 const BENEFITS = [
@@ -34,6 +36,9 @@ const BENEFITS = [
 ];
 
 interface FormState {
+  firstName: string;
+  lastName: string;
+  phone: string;
   bvn: string;
   dob: string;
   gender: "1" | "2";
@@ -42,6 +47,10 @@ interface FormState {
 
 function validate(form: FormState): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {};
+  if (!form.firstName.trim()) errors.firstName = "First name is required.";
+  if (!form.lastName.trim()) errors.lastName = "Last name is required.";
+  if (!/^\d{11}$/.test(form.phone.replace(/\D/g, "")))
+    errors.phone = "Enter a valid 11-digit Nigerian phone number.";
   if (!/^\d{11}$/.test(form.bvn)) errors.bvn = "BVN must be exactly 11 digits.";
   if (!form.dob) errors.dob = "Date of birth is required.";
   if (!form.address.trim() || form.address.trim().length < 5)
@@ -51,16 +60,23 @@ function validate(form: FormState): Partial<Record<keyof FormState, string>> {
 
 export function VirtualAccountSetup() {
   const { ensureSetup, isLoading, error } = usePaymentStore();
+  const { user } = useAuthStore();
+
+  const fullName = user?.user_metadata?.full_name ?? "";
+  const nameParts = fullName.trim().split(/\s+/);
+  const defaultFirst = nameParts[0] ?? "";
+  const defaultLast = nameParts.slice(1).join(" ") ?? "";
 
   const [form, setForm] = useState<FormState>({
+    firstName: defaultFirst,
+    lastName: defaultLast,
+    phone: "",
     bvn: "",
     dob: "",
     gender: "1",
     address: "",
   });
-  const [fieldErrors, setFieldErrors] = useState<
-    Partial<Record<keyof FormState, string>>
-  >({});
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -74,7 +90,15 @@ export function VirtualAccountSetup() {
       setFieldErrors(errors);
       return;
     }
-    await ensureSetup(form);
+    await ensureSetup({
+      bvn: form.bvn,
+      dob: form.dob,
+      gender: form.gender,
+      address: form.address,
+      first_name: form.firstName.trim(),
+      last_name: form.lastName.trim(),
+      phone: form.phone.replace(/\D/g, ""),
+    });
   }
 
   return (
@@ -110,9 +134,7 @@ export function VirtualAccountSetup() {
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center gap-2 mb-1">
           <ShieldCheck className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            Identity Verification
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">Identity Verification</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-5">
           Required by CBN regulations to open your virtual account. Your data is
@@ -120,6 +142,63 @@ export function VirtualAccountSetup() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name fields */}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              The name below is pre-filled from your profile. If your BVN is registered
+              under a different name, update it here — it must match exactly.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                placeholder="As on your BVN"
+                value={form.firstName}
+                onChange={(e) => set("firstName", e.target.value)}
+                disabled={isLoading}
+                aria-invalid={!!fieldErrors.firstName}
+              />
+              {fieldErrors.firstName && (
+                <p className="text-xs text-destructive">{fieldErrors.firstName}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                placeholder="As on your BVN"
+                value={form.lastName}
+                onChange={(e) => set("lastName", e.target.value)}
+                disabled={isLoading}
+                aria-invalid={!!fieldErrors.lastName}
+              />
+              {fieldErrors.lastName && (
+                <p className="text-xs text-destructive">{fieldErrors.lastName}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">Phone Number</Label>
+            <Input
+              id="phone"
+              placeholder="e.g. 08012345678"
+              value={form.phone}
+              onChange={(e) => set("phone", e.target.value.replace(/[^\d+\s-]/g, "").slice(0, 14))}
+              inputMode="tel"
+              disabled={isLoading}
+              aria-invalid={!!fieldErrors.phone}
+            />
+            {fieldErrors.phone && (
+              <p className="text-xs text-destructive">{fieldErrors.phone}</p>
+            )}
+          </div>
+
           {/* BVN */}
           <div className="space-y-1.5">
             <Label htmlFor="bvn">BVN</Label>
@@ -138,7 +217,6 @@ export function VirtualAccountSetup() {
             )}
             <p className="text-xs text-muted-foreground">
               Dial <span className="font-mono">*565*0#</span> on your registered number to get your BVN.
-              Your name on this account must match your BVN records exactly.
             </p>
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useJobStore } from "@/store/jobStore";
 import { useAuthStore } from "@/store/authStore";
+import { JobProposalsView } from "@/components/customer/JobProposalsView";
 
 const STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
   open: { label: "Open", className: "bg-blue-100 text-blue-700", icon: <AlertCircle className="w-3 h-3" /> },
@@ -30,6 +31,7 @@ export default function JobsListPage() {
   const { jobs, isLoading, error, fetchJobs, clearError } = useJobStore();
   const { getUserType } = useAuthStore();
   const userType = getUserType();
+  const [tab, setTab] = useState<"jobs" | "posts">("jobs");
 
   useEffect(() => {
     fetchJobs();
@@ -53,7 +55,7 @@ export default function JobsListPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Jobs</h1>
           <p className="text-gray-500 mt-1">
-            {userType === "worker" ? "Jobs you're working on" : "Jobs you've posted"}
+            {userType === "worker" ? "Jobs you're working on" : "Your active jobs and job posts"}
           </p>
         </div>
         {userType === "worker" && (
@@ -65,6 +67,27 @@ export default function JobsListPage() {
           </Button>
         )}
       </div>
+
+      {/* Customer tabs */}
+      {userType === "customer" && (
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+          <button
+            onClick={() => setTab("jobs")}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "jobs" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            Hired Jobs
+          </button>
+          <button
+            onClick={() => setTab("posts")}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "posts" ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            My Posts
+          </button>
+        </div>
+      )}
+
+      {userType === "customer" && tab === "posts" && <JobProposalsView />}
+
 
       {/* Error */}
       {error && (
@@ -79,8 +102,8 @@ export default function JobsListPage() {
         </div>
       )}
 
-      {/* Jobs List */}
-      {jobs.length > 0 ? (
+      {/* Jobs List — shown for workers always, and for customers on "Hired Jobs" tab */}
+      {(userType === "worker" || (userType === "customer" && tab === "jobs")) && jobs.length > 0 ? (
         <div className="space-y-3">
           {jobs.map((job, index) => {
             const status = STATUS_CONFIG[job.status] || STATUS_CONFIG.open;
@@ -123,14 +146,12 @@ export default function JobsListPage() {
             );
           })}
         </div>
-      ) : (
-        <div className="text-center py-16 min-h-[85vh] flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-[var(--orange)]/5">
+      ) : (userType === "worker" || (userType === "customer" && tab === "jobs")) ? (
+        <div className="text-center py-16 min-h-[60vh] flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-[var(--orange)]/5">
           <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No jobs yet</h3>
           <p className="text-gray-500 text-sm mb-4">
-            {userType === "worker"
-              ? "Browse the job feed to find work"
-              : "Post a job to get started"}
+            {userType === "worker" ? "Browse the job feed to find work" : "Post a job or hire an artisan to get started"}
           </p>
           <Button
             onClick={() => router.push(userType === "worker" ? "/dashboard/jobs/feed" : "/marketplace")}
@@ -139,7 +160,7 @@ export default function JobsListPage() {
             {userType === "worker" ? "Find Jobs" : "Find Artisans"}
           </Button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

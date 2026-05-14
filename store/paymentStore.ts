@@ -46,7 +46,7 @@ interface PaymentState {
   needsSetup: boolean;
 
   fetchVirtualAccount: () => Promise<void>;
-  ensureSetup: (kyc: { bvn: string; dob: string; gender: "1" | "2"; address: string }) => Promise<void>;
+  ensureSetup: (kyc: { bvn: string; dob: string; gender: "1" | "2"; address: string; first_name: string; last_name: string; phone: string }) => Promise<void>;
   fetchTransactions: () => Promise<void>;
   clearError: () => void;
   clearVirtualAccountError: () => void;

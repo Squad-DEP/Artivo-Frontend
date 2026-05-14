@@ -19,6 +19,7 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { AuthGuard } from "./_components/AuthGuard";
+import { Breadcrumbs } from "@/components/dashboard/Breadcrumbs";
 import { BRAND } from "@/lib/constants";
 
 interface NavLink {
@@ -288,6 +289,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Main Content */}
         <main className="md:ml-64 max-md:pt-20 pb-10 flex-1 flex flex-col bg-background px-2 sm:px-4 md:px-6 py-4 md:py-6">
+          <Breadcrumbs />
           {children}
         </main>
       </div>

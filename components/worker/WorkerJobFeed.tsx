@@ -27,9 +27,8 @@ export function WorkerJobFeed() {
   const [proposedAmounts, setProposedAmounts] = React.useState<
     Record<string, string>
   >({});
-  const [acceptingJobId, setAcceptingJobId] = React.useState<string | null>(
-    null
-  );
+  const [acceptingJobId, setAcceptingJobId] = React.useState<string | null>(null);
+  const [appliedJobIds, setAppliedJobIds] = React.useState<Set<string>>(new Set());
 
   // Connect SSE on mount, disconnect on unmount
   React.useEffect(() => {
@@ -62,15 +61,17 @@ export function WorkerJobFeed() {
     if (!amountStr || isNaN(amount) || amount <= 0) return;
 
     setAcceptingJobId(jobRequestId);
-    await acceptJob(jobRequestId, amount);
+    const ok = await acceptJob(jobRequestId, amount);
     setAcceptingJobId(null);
 
-    // Clear the proposed amount for this job
-    setProposedAmounts((prev) => {
-      const next = { ...prev };
-      delete next[jobRequestId];
-      return next;
-    });
+    if (ok) {
+      setAppliedJobIds((prev) => new Set(prev).add(jobRequestId));
+      setProposedAmounts((prev) => {
+        const next = { ...prev };
+        delete next[jobRequestId];
+        return next;
+      });
+    }
   };
 
   const handleAmountChange = (jobId: string, value: string) => {
@@ -181,6 +182,7 @@ export function WorkerJobFeed() {
               onAmountChange={(value) => handleAmountChange(job.id, value)}
               onAccept={() => handleAcceptJob(job.id)}
               isAccepting={acceptingJobId === job.id}
+              hasApplied={appliedJobIds.has(job.id)}
             />
           ))}
         </div>
@@ -234,12 +236,14 @@ function JobCard({
   onAmountChange,
   onAccept,
   isAccepting,
+  hasApplied,
 }: {
   job: StreamedJob;
   proposedAmount: string;
   onAmountChange: (value: string) => void;
   onAccept: () => void;
   isAccepting: boolean;
+  hasApplied: boolean;
 }) {
   const formattedBudget = new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -322,43 +326,50 @@ function JobCard({
         </span>
       </div>
 
-      {/* Accept section */}
-      <div className="flex items-end gap-2 pt-1">
-        <div className="flex-1">
-          <label
-            htmlFor={`amount-${job.id}`}
-            className="text-xs font-medium text-muted-foreground mb-1 block"
-          >
-            Proposed Amount (₦)
-          </label>
-          <Input
-            id={`amount-${job.id}`}
-            type="number"
-            min="1"
-            step="any"
-            placeholder="Enter amount"
-            value={proposedAmount}
-            onChange={(e) => onAmountChange(e.target.value)}
-            disabled={isAccepting}
-            className="h-9 text-sm"
-          />
+      {/* Apply section */}
+      {hasApplied ? (
+        <div className="flex items-center gap-2 pt-1 text-sm text-green-600 font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+          Proposal submitted — waiting for customer
         </div>
-        <Button
-          onClick={onAccept}
-          disabled={isAccepting || !isAmountValid}
-          size="sm"
-          className="shrink-0"
-        >
-          {isAccepting ? (
-            <>
-              <Spinner />
-              Accepting...
-            </>
-          ) : (
-            "Accept"
-          )}
-        </Button>
-      </div>
+      ) : (
+        <div className="flex items-end gap-2 pt-1">
+          <div className="flex-1">
+            <label
+              htmlFor={`amount-${job.id}`}
+              className="text-xs font-medium text-muted-foreground mb-1 block"
+            >
+              Your Proposed Amount (₦)
+            </label>
+            <Input
+              id={`amount-${job.id}`}
+              type="number"
+              min="1"
+              step="any"
+              placeholder="Enter your price"
+              value={proposedAmount}
+              onChange={(e) => onAmountChange(e.target.value)}
+              disabled={isAccepting}
+              className="h-9 text-sm"
+            />
+          </div>
+          <Button
+            onClick={onAccept}
+            disabled={isAccepting || !isAmountValid}
+            size="sm"
+            className="shrink-0"
+          >
+            {isAccepting ? (
+              <>
+                <Spinner />
+                Sending...
+              </>
+            ) : (
+              "Apply"
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
