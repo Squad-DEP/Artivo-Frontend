@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useWorkerJobStore } from "@/store/workerJobStore";
-import type { WorkerProposal } from "@/store/workerJobStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -13,19 +12,15 @@ import { Plus, Check, X, Search } from "lucide-react";
 const formatBudget = (v: number | null | undefined) =>
   !v || v === 0 ? "Negotiable" : `₦${Number(v).toLocaleString("en-NG")}`;
 
-type Tab = "available" | "applications";
-
 export function WorkerJobFeed() {
   const {
     availableJobTypes,
     subscriptions,
     streamedJobs,
-    proposals,
     isLoading,
     error,
     fetchJobTypes,
     fetchSubscriptions,
-    fetchProposals,
     startPolling,
     stopPolling,
     subscribe,
@@ -33,7 +28,6 @@ export function WorkerJobFeed() {
     acceptJob,
   } = useWorkerJobStore();
 
-  const [tab, setTab] = React.useState<Tab>("available");
   const [proposedMin, setProposedMin] = React.useState<Record<string, string>>({});
   const [proposedMax, setProposedMax] = React.useState<Record<string, string>>({});
   const [acceptingJobId, setAcceptingJobId] = React.useState<string | null>(null);
@@ -43,10 +37,9 @@ export function WorkerJobFeed() {
   React.useEffect(() => {
     fetchJobTypes();
     fetchSubscriptions();
-    fetchProposals();
     startPolling();
     return () => stopPolling();
-  }, [fetchJobTypes, fetchSubscriptions, fetchProposals, startPolling, stopPolling]);
+  }, [fetchJobTypes, fetchSubscriptions, startPolling, stopPolling]);
 
   const isSubscribed = (jobTypeId: string) =>
     subscriptions.some((sub) => sub.job_type_id === jobTypeId);
@@ -69,11 +62,8 @@ export function WorkerJobFeed() {
     if (ok) {
       setProposedMin((prev) => { const next = { ...prev }; delete next[jobRequestId]; return next; });
       setProposedMax((prev) => { const next = { ...prev }; delete next[jobRequestId]; return next; });
-      setTab("applications");
     }
   };
-
-  const pendingCount = proposals.filter((p) => p.status === "pending").length;
 
   return (
     <div className="space-y-6">
@@ -118,7 +108,7 @@ export function WorkerJobFeed() {
                     jt.name.toLowerCase().includes(typeSearch.toLowerCase())
                   );
                   return filtered.length === 0 ? (
-                    <p className="px-3 py-4 text-sm text-muted-foreground text-center">No matches for "{typeSearch}"</p>
+                    <p className="px-3 py-4 text-sm text-muted-foreground text-center">No matches for &ldquo;{typeSearch}&rdquo;</p>
                   ) : filtered.map((jt) => {
                     const subscribed = isSubscribed(jt.id);
                     return (
@@ -170,89 +160,43 @@ export function WorkerJobFeed() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-border">
-        <div className="flex gap-0">
-          <TabButton active={tab === "available"} onClick={() => setTab("available")}>
-            Available Jobs
-            {streamedJobs.length > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-xs font-medium leading-none">
-                {streamedJobs.length}
-              </span>
-            )}
-          </TabButton>
-          <TabButton active={tab === "applications"} onClick={() => setTab("applications")}>
-            My Applications
-            {pendingCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-700 px-1.5 py-0.5 text-xs font-medium leading-none">
-                {pendingCount}
-              </span>
-            )}
-          </TabButton>
-        </div>
-      </div>
-
       {error && (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
           <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 
-      {/* Available Jobs tab */}
-      {tab === "available" && (
-        <div className="space-y-3">
-          {streamedJobs.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-              <p className="text-sm text-muted-foreground">No open jobs at the moment. Check back soon.</p>
+      {/* Available Jobs */}
+      <div className="space-y-3">
+        {streamedJobs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50 to-white py-14 px-6 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+              <Search className="w-7 h-7 text-[var(--orange)]" />
             </div>
-          ) : (
-            streamedJobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                proposedMin={proposedMin[job.id] ?? ""}
-                proposedMax={proposedMax[job.id] ?? ""}
-                onMinChange={(v) => setProposedMin((prev) => ({ ...prev, [job.id]: v }))}
-                onMaxChange={(v) => setProposedMax((prev) => ({ ...prev, [job.id]: v }))}
-                onAccept={() => handleAcceptJob(job.id)}
-                isAccepting={acceptingJobId === job.id}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Applications tab */}
-      {tab === "applications" && (
-        <div className="space-y-3">
-          {proposals.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-              <p className="text-sm text-muted-foreground">No applications yet. Apply to jobs in the Available tab.</p>
-            </div>
-          ) : (
-            proposals.map((proposal) => (
-              <ProposalCard key={proposal.id} proposal={proposal} />
-            ))
-          )}
-        </div>
-      )}
+            <h3 className="text-base font-semibold text-gray-900 mb-1">No open jobs right now</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              New jobs are posted throughout the day. Make sure you&apos;re subscribed to the right job types above so you don&apos;t miss anything.
+            </p>
+            <p className="text-xs text-[var(--orange)] mt-3 bg-gray-100 rounded-full px-3 py-1.5">
+              Feed refreshes automatically
+            </p>
+          </div>
+        ) : (
+          streamedJobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              proposedMin={proposedMin[job.id] ?? ""}
+              proposedMax={proposedMax[job.id] ?? ""}
+              onMinChange={(v) => setProposedMin((prev) => ({ ...prev, [job.id]: v }))}
+              onMaxChange={(v) => setProposedMax((prev) => ({ ...prev, [job.id]: v }))}
+              onAccept={() => handleAcceptJob(job.id)}
+              isAccepting={acceptingJobId === job.id}
+            />
+          ))
+        )}
+      </div>
     </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
-        active
-          ? "border-[var(--orange)] text-[var(--orange)]"
-          : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -328,43 +272,6 @@ function JobCard({
         {proposedMin && proposedMax && !isValid && (
           <p className="text-xs text-destructive">Max must be greater than or equal to min.</p>
         )}
-      </div>
-    </div>
-  );
-}
-
-function ProposalCard({ proposal }: { proposal: WorkerProposal }) {
-  const statusConfig = {
-    pending: { label: "Awaiting review", className: "bg-amber-50 text-amber-700 border-amber-200" },
-    accepted: { label: "Accepted", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    rejected: { label: "Declined", className: "bg-red-50 text-red-600 border-red-200" },
-  };
-  const { label, className } = statusConfig[proposal.status] ?? statusConfig.pending;
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <h4 className="text-sm font-semibold text-foreground truncate">{proposal.title}</h4>
-          <p className="text-sm text-muted-foreground line-clamp-2">{proposal.description}</p>
-        </div>
-        <span className={cn("shrink-0 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", className)}>
-          {label}
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>{proposal.location}</span>
-        <span>Job budget: {formatBudget(proposal.budget)}</span>
-        <span>By {proposal.customer_name}</span>
-      </div>
-      <div className="flex items-center justify-between pt-1 border-t border-border">
-        <span className="text-xs text-muted-foreground">Your price range</span>
-        <span className="text-sm font-semibold text-foreground">
-          ₦{Number(proposal.proposed_amount).toLocaleString("en-NG")}
-          {proposal.proposed_amount_max && proposal.proposed_amount_max > proposal.proposed_amount
-            ? ` – ₦${Number(proposal.proposed_amount_max).toLocaleString("en-NG")}`
-            : ""}
-        </span>
       </div>
     </div>
   );

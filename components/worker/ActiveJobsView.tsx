@@ -123,8 +123,36 @@ export function WorkerActiveJobsView({
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading your jobs…
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden animate-pulse">
+            {/* Status badge */}
+            <div className="px-4 pt-3.5 pb-0">
+              <div className="h-4 w-16 bg-gray-200 rounded-full" />
+            </div>
+            {/* Title + description */}
+            <div className="px-4 pt-3 pb-0 space-y-2">
+              <div className="h-5 w-3/4 bg-gray-200 rounded" />
+              <div className="h-3 w-full bg-gray-200 rounded" />
+            </div>
+            {/* Meta chips */}
+            <div className="px-4 pt-3 pb-0 flex gap-2">
+              <div className="h-6 w-24 bg-gray-200 rounded-full" />
+              <div className="h-6 w-20 bg-gray-200 rounded-full" />
+              <div className="h-6 w-16 bg-gray-200 rounded-full" />
+            </div>
+            {/* Confirmation row */}
+            <div className="mx-4 mt-3 rounded-xl bg-gray-100 border border-gray-200 px-3 py-2.5 flex items-center gap-4">
+              <div className="h-4 w-20 bg-gray-200 rounded" />
+              <div className="w-px h-4 bg-gray-200" />
+              <div className="h-4 w-24 bg-gray-200 rounded" />
+            </div>
+            {/* Action button */}
+            <div className="px-4 pt-3 pb-4">
+              <div className="h-11 w-full bg-gray-200 rounded-lg" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -141,12 +169,7 @@ export function WorkerActiveJobsView({
   const completedJobs = jobs.filter(j => j.status === "completed");
 
   if (jobs.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center">
-        <p className="text-sm text-muted-foreground">No jobs yet.</p>
-        <p className="text-xs text-muted-foreground mt-1">Apply to jobs in the feed to get started.</p>
-      </div>
-    );
+    return <EmptyJobsState />;
   }
 
   return (
@@ -397,5 +420,73 @@ function ConfirmPin({ confirmed, label }: { confirmed: boolean; label: string })
         {confirmed ? "confirmed" : "pending"}
       </span>
     </span>
+  );
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+
+const TIPS = [
+  "Update your portfolio with completed work to attract more customers",
+  "A detailed bio helps customers understand your expertise",
+  "Respond to proposals quickly — speed builds trust",
+  "Add photos of past projects to stand out in search results",
+  "Keep your availability status current so customers know you're ready",
+  "Workers with 5+ skills get 3× more job invites on average",
+  "Set a competitive hourly rate based on your experience level",
+];
+
+function EmptyJobsState() {
+  const [tipIndex, setTipIndex] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setTipIndex((prev) => (prev + 1) % TIPS.length);
+        setFade(true);
+      }, 300);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50 to-white py-16 px-6 text-center">
+      {/* Icon */}
+      <div className="w-16 h-16 rounded-2xl bg-[var(--orange)]/10 flex items-center justify-center mb-5">
+        <Banknote className="w-8 h-8 text-[var(--orange)]" />
+      </div>
+
+      {/* Heading */}
+      <h3 className="text-lg font-semibold text-gray-900 mb-1">No active jobs yet</h3>
+      <p className="text-sm text-muted-foreground max-w-xs">
+        Browse the job feed and send proposals to get hired. Your active jobs will show up here.
+      </p>
+
+      {/* CTA */}
+      <Button
+        className="mt-6 bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white px-6"
+        onClick={() => window.location.href = "/dashboard/jobs?tab=feed"}
+      >
+        Browse Job Feed
+      </Button>
+
+      {/* Rotating tip */}
+      <div className="mt-8 w-full max-w-sm">
+        <div className="rounded-xl bg-gray-100 border border-gray-200 px-4 py-3">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+            💡 Tip
+          </p>
+          <p
+            className={cn(
+              "text-sm text-[var(--orange)] transition-opacity duration-300",
+              fade ? "opacity-100" : "opacity-0"
+            )}
+          >
+            {TIPS[tipIndex]}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

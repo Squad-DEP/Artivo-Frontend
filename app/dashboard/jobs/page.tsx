@@ -8,11 +8,12 @@ import { JobProposalsView } from "@/components/customer/JobProposalsView";
 import { ActiveJobsView } from "@/components/customer/ActiveJobsView";
 import { WorkerJobFeed } from "@/components/worker/WorkerJobFeed";
 import { WorkerActiveJobsView } from "@/components/worker/ActiveJobsView";
+import { WorkerApplicationsView } from "@/components/worker/WorkerApplicationsView";
 
 type CustomerTab = "posts" | "active";
-type WorkerTab = "feed" | "active";
+type WorkerTab = "feed" | "myjobs";
+type MyJobsSubTab = "active" | "applications";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function JobsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,7 +27,10 @@ function JobsPageInner() {
     tabParam === "active" ? "active" : "posts"
   );
   const [workerTab, setWorkerTab] = useState<WorkerTab>(
-    tabParam === "active" ? "active" : "feed"
+    tabParam === "active" || tabParam === "applications" ? "myjobs" : "feed"
+  );
+  const [myJobsSubTab, setMyJobsSubTab] = useState<MyJobsSubTab>(
+    tabParam === "applications" ? "applications" : "active"
   );
   const [unresolvedCount, setUnresolvedCount] = useState(0);
 
@@ -49,7 +53,11 @@ function JobsPageInner() {
   useEffect(() => {
     if (tabParam === "active") {
       setCustomerTab("active");
-      setWorkerTab("active");
+      setWorkerTab("myjobs");
+      setMyJobsSubTab("active");
+    } else if (tabParam === "applications") {
+      setWorkerTab("myjobs");
+      setMyJobsSubTab("applications");
     }
   }, [tabParam]);
 
@@ -102,12 +110,12 @@ function JobsPageInner() {
         <p className="text-sm text-muted-foreground mt-1">Find work and track your active jobs</p>
       </div>
 
-      {/* Tabs */}
+      {/* Primary Tabs */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit">
         <TabBtn active={workerTab === "feed"} onClick={() => setWorkerTab("feed")}>
           Job Feed
         </TabBtn>
-        <TabBtn active={workerTab === "active"} onClick={() => setWorkerTab("active")}>
+        <TabBtn active={workerTab === "myjobs"} onClick={() => setWorkerTab("myjobs")}>
           My Jobs
           {unresolvedCount > 0 && (
             <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-[var(--orange)] text-white w-4 h-4 text-[10px] font-bold leading-none">
@@ -117,12 +125,28 @@ function JobsPageInner() {
         </TabBtn>
       </div>
 
-      {workerTab === "feed"   && <WorkerJobFeed />}
-      {workerTab === "active" && (
-        <WorkerActiveJobsView
-          highlightJobId={highlightId}
-          onUnresolvedCount={handleUnresolvedCount}
-        />
+      {workerTab === "feed" && <WorkerJobFeed />}
+
+      {workerTab === "myjobs" && (
+        <div className="space-y-4">
+          {/* Sub-tabs */}
+          <div className="flex gap-0 border-b border-border">
+            <SubTabBtn active={myJobsSubTab === "active"} onClick={() => setMyJobsSubTab("active")}>
+              Active Jobs
+            </SubTabBtn>
+            <SubTabBtn active={myJobsSubTab === "applications"} onClick={() => setMyJobsSubTab("applications")}>
+              Applications
+            </SubTabBtn>
+          </div>
+
+          {myJobsSubTab === "active" && (
+            <WorkerActiveJobsView
+              highlightJobId={highlightId}
+              onUnresolvedCount={handleUnresolvedCount}
+            />
+          )}
+          {myJobsSubTab === "applications" && <WorkerApplicationsView />}
+        </div>
       )}
     </div>
   );
@@ -142,6 +166,21 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
       onClick={onClick}
       className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
         active ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SubTabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+        active
+          ? "border-[var(--orange)] text-[var(--orange)]"
+          : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
       }`}
     >
       {children}
