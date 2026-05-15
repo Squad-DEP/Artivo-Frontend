@@ -113,14 +113,7 @@ export default function CustomerOnboardingPage() {
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      const mimeType = [
-        "audio/webm;codecs=opus", // Chrome / Android — best Whisper support
-        "audio/ogg;codecs=opus",  // Firefox
-        "audio/mp4",              // Safari — must come before plain webm
-        "audio/webm",             // Safari fallback (may use non-Opus codec)
-      ].find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
-
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -130,11 +123,9 @@ export default function CustomerOnboardingPage() {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
-        const actualType = mediaRecorder.mimeType || mimeType || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type: actualType });
-        const ext = actualType.includes("mp4") ? "mp4" : actualType.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const formData = new FormData();
-        formData.append("audio", blob, `recording.${ext}`);
+        formData.append("audio", blob, "recording.webm");
         formData.append("userType", "customer");
         await submitVoice(formData);
       };

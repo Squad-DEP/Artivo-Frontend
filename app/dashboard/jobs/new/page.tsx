@@ -66,12 +66,7 @@ export default function CreateJobPage() {
         throw new Error("NotSupported");
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType =
-        ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4", "audio/webm"].find(
-          (t) => MediaRecorder.isTypeSupported(t)
-        ) ?? "";
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      const actualType = recorder.mimeType || mimeType || "audio/webm";
+      const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -80,10 +75,9 @@ export default function CreateJobPage() {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: actualType });
-        const ext = actualType.includes("mp4") ? "mp4" : actualType.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const formData = new FormData();
-        formData.append("audio", blob, `recording.${ext}`);
+        formData.append("audio", blob, "recording.webm");
         await submitVoice(formData);
       };
 
