@@ -19,6 +19,7 @@ export interface JobType {
 export interface Subscription {
   id: string;
   job_type_id: string;
+  job_type_name: string;
   created_at: string;
 }
 
@@ -47,6 +48,7 @@ export interface WorkerJobState {
   error: string | null;
 
   fetchJobTypes: () => Promise<void>;
+  fetchSubscriptions: () => Promise<void>;
   fetchJobs: () => Promise<void>;
   fetchProposals: () => Promise<void>;
   startPolling: () => void;
@@ -81,6 +83,15 @@ export const useWorkerJobStore = create<WorkerJobState>()((set, get) => ({
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Failed to fetch job types" });
+    }
+  },
+
+  fetchSubscriptions: async () => {
+    try {
+      const response = await apiService.get<{ subscriptions: Subscription[] }>("/worker/subscriptions");
+      set({ subscriptions: response.subscriptions ?? [] });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : "Failed to fetch subscriptions" });
     }
   },
 
@@ -120,11 +131,8 @@ export const useWorkerJobStore = create<WorkerJobState>()((set, get) => ({
   subscribe: async (jobTypeId: string) => {
     try {
       const payload: SubscribePayload = { job_type_id: jobTypeId };
-      const response = await apiService.post<{ subscription: Subscription }>(
-        "/worker/subscribe",
-        { body: payload }
-      );
-      set((state) => ({ subscriptions: [...state.subscriptions, response.subscription] }));
+      await apiService.post<{ subscription: Subscription }>("/worker/subscribe", { body: payload });
+      await get().fetchSubscriptions();
       return true;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Failed to subscribe" });

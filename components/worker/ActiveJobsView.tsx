@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, User, MapPin, Banknote, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Loader2, User, MapPin, Banknote, CheckCircle2,
+  Clock, AlertCircle, CreditCard,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/api/api-service";
+import { cn } from "@/lib/utils";
 
 interface ActiveJob {
   id: string;
@@ -21,21 +25,27 @@ interface ActiveJob {
   customer_confirmed: boolean;
 }
 
-const formatAmount = (v: number) => `₦${Number(v).toLocaleString("en-NG")}`;
+const fmt = (v: number) => `₦${Number(v).toLocaleString("en-NG")}`;
 
-function getJobBadge(job: ActiveJob): { label: string; color: string } {
-  if (job.status === "completed") return { label: "Completed", color: "bg-gray-100 text-gray-600 border-gray-200" };
-  if (job.worker_confirmed && !job.customer_confirmed) return { label: "Waiting for Customer", color: "bg-amber-50 text-amber-700 border-amber-200" };
-  if (job.customer_confirmed && !job.worker_confirmed) return { label: "Customer Marked Done", color: "bg-purple-50 text-purple-700 border-purple-200" };
-  return { label: "Active", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+function getBadge(job: ActiveJob): { label: string; dot: string; text: string } {
+  if (job.status === "completed")
+    return { label: "Completed", dot: "bg-gray-400", text: "text-gray-500" };
+  if (job.worker_confirmed && job.customer_confirmed)
+    return { label: "Both confirmed", dot: "bg-emerald-500", text: "text-emerald-700" };
+  if (job.worker_confirmed)
+    return { label: "Waiting for customer", dot: "bg-amber-400", text: "text-amber-700" };
+  if (job.customer_confirmed)
+    return { label: "Customer marked done", dot: "bg-purple-400", text: "text-purple-700" };
+  return { label: "Active", dot: "bg-emerald-500", text: "text-emerald-700" };
 }
 
-export function WorkerActiveJobsView() {
+export function WorkerActiveJobsView({ highlightJobId }: { highlightJobId?: string }) {
   const [jobs, setJobs] = useState<ActiveJob[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -49,24 +59,20 @@ export function WorkerActiveJobsView() {
     }
   }, []);
 
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
+
+  // Scroll highlighted job into view once data loads
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (highlightJobId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightJobId, jobs]);
 
   async function handleComplete(jobId: string) {
     setCompleting(jobId);
     try {
-      const res = await apiService.post<{
-        success: boolean;
-        msg: string;
-        released: boolean;
-        customer_confirmed: boolean;
-        worker_confirmed: boolean;
-      }>(`/worker/complete-job/${jobId}`, {});
+      await apiService.post<{ success: boolean }>(`/worker/complete-job/${jobId}`, {});
       await fetchJobs();
-      if (res.released) {
-        // Both confirmed — payout is being sent
-      }
     } catch (e: any) {
       setError(e?.message ?? "Failed to mark job as complete.");
     } finally {
@@ -97,7 +103,7 @@ export function WorkerActiveJobsView() {
   if (jobs.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border p-10 text-center">
-        <p className="text-sm text-muted-foreground">No active jobs yet.</p>
+        <p className="text-sm text-muted-foreground">No jobs yet.</p>
         <p className="text-xs text-muted-foreground mt-1">Apply to jobs in the feed to get started.</p>
       </div>
     );
@@ -107,109 +113,39 @@ export function WorkerActiveJobsView() {
     <div className="space-y-6">
       {activeJobs.length > 0 && (
         <div className="space-y-3">
-          {activeJobs.map((job) => {
-            const cfg = getJobBadge(job);
-            const canComplete = !job.worker_confirmed && job.status !== "completed";
-            const isConfirming = confirmingId === job.id;
-
-            return (
-              <div key={job.id} className="rounded-xl border bg-card p-4 space-y-3">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-0.5">
-                    <h4 className="text-sm font-semibold text-foreground truncate">{job.title}</h4>
-                    <p className="text-xs text-muted-foreground line-clamp-1">{job.description}</p>
-                  </div>
-                  <span className={`shrink-0 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cfg.color}`}>
-                    {cfg.label}
-                  </span>
-                </div>
-
-                {/* Customer info + meta */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                  <User className="w-3.5 h-3.5" />
-                  <span className="font-medium text-foreground">{job.customer_name}</span>
-                  {job.location && <><MapPin className="w-3 h-3 ml-1" />{job.location}</>}
-                  <Banknote className="w-3 h-3 ml-1" />
-                  <span className="font-semibold text-foreground">{formatAmount(job.amount)}</span>
-                  {job.payment_method === "offline" && (
-                    <span className="ml-1 text-muted-foreground">(cash)</span>
-                  )}
-                </div>
-
-                {/* Confirmation state */}
-                <div className="flex items-center gap-3 text-xs pt-1 border-t border-border">
-                  <ConfirmDot confirmed={job.worker_confirmed} label="You" />
-                  <ConfirmDot confirmed={job.customer_confirmed} label={job.customer_name.split(" ")[0]} />
-                </div>
-
-                {/* Action */}
-                {canComplete && (
-                  isConfirming ? (
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => setConfirmingId(null)}
-                        disabled={!!completing}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => handleComplete(job.id)}
-                        disabled={completing === job.id}
-                      >
-                        {completing === job.id
-                          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Confirming…</>
-                          : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Yes, I'm Done</>}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                      onClick={() => setConfirmingId(job.id)}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                      Mark Job as Complete
-                    </Button>
-                  )
-                )}
-
-                {job.worker_confirmed && !job.customer_confirmed && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1 border-t border-border">
-                    <Clock className="w-3.5 h-3.5" />
-                    Waiting for {job.customer_name.split(" ")[0]} to confirm. Payment releases once both confirm.
-                  </p>
-                )}
-
-                {job.worker_confirmed && job.customer_confirmed && (
-                  <p className="text-xs text-emerald-600 flex items-center gap-1.5 pt-1 border-t border-border font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Both confirmed — payment is being transferred to you.
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          {activeJobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              isHighlighted={job.id === highlightJobId}
+              highlightRef={job.id === highlightJobId ? highlightRef : undefined}
+              isConfirming={confirmingId === job.id}
+              isCompleting={completing === job.id}
+              onConfirmStart={() => setConfirmingId(job.id)}
+              onConfirmCancel={() => setConfirmingId(null)}
+              onComplete={() => handleComplete(job.id)}
+            />
+          ))}
         </div>
       )}
 
       {completedJobs.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Completed</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+            Completed
+          </p>
           {completedJobs.map((job) => (
-            <div key={job.id} className="rounded-xl border bg-card/50 p-4 flex items-center gap-3 opacity-75">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{job.title}</p>
-                <p className="text-xs text-muted-foreground">for {job.customer_name} · {formatAmount(job.amount)}</p>
-              </div>
-            </div>
+            <JobCard
+              key={job.id}
+              job={job}
+              isHighlighted={job.id === highlightJobId}
+              highlightRef={job.id === highlightJobId ? highlightRef : undefined}
+              isConfirming={false}
+              isCompleting={false}
+              onConfirmStart={() => {}}
+              onConfirmCancel={() => {}}
+              onComplete={() => {}}
+            />
           ))}
         </div>
       )}
@@ -217,13 +153,169 @@ export function WorkerActiveJobsView() {
   );
 }
 
-function ConfirmDot({ confirmed, label }: { confirmed: boolean; label: string }) {
+function JobCard({
+  job, isHighlighted, highlightRef,
+  isConfirming, isCompleting,
+  onConfirmStart, onConfirmCancel, onComplete,
+}: {
+  job: ActiveJob;
+  isHighlighted: boolean;
+  highlightRef?: React.Ref<HTMLDivElement>;
+  isConfirming: boolean;
+  isCompleting: boolean;
+  onConfirmStart: () => void;
+  onConfirmCancel: () => void;
+  onComplete: () => void;
+}) {
+  const badge = getBadge(job);
+  const isCompleted = job.status === "completed";
+  const canComplete = !job.worker_confirmed && !isCompleted;
+
   return (
-    <span className={`flex items-center gap-1 ${confirmed ? "text-emerald-600" : "text-muted-foreground"}`}>
+    <div
+      ref={highlightRef}
+      className={cn(
+        "rounded-2xl border bg-card transition-all duration-500",
+        isHighlighted && "ring-2 ring-[var(--orange)] ring-offset-2 shadow-md",
+        isCompleted && "opacity-70"
+      )}
+    >
+      {/* ── Top bar: status badge ── */}
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-0">
+        <span className={cn("flex items-center gap-1.5 text-xs font-medium", badge.text)}>
+          <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", badge.dot)} />
+          {badge.label}
+        </span>
+        {job.payment_method === "offline" && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CreditCard className="w-3 h-3" /> Cash
+          </span>
+        )}
+      </div>
+
+      {/* ── Title + description ── */}
+      <div className="px-4 pt-2 pb-0">
+        <h4 className="text-base font-semibold text-foreground leading-snug">{job.title}</h4>
+        {job.description && (
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+            {job.description}
+          </p>
+        )}
+      </div>
+
+      {/* ── Meta chips row ── */}
+      <div className="px-4 pt-3 pb-0 flex flex-wrap items-center gap-2">
+        <Chip icon={<User className="w-3 h-3" />} label={job.customer_name} bold />
+        {job.location && <Chip icon={<MapPin className="w-3 h-3" />} label={job.location} />}
+        <Chip
+          icon={<Banknote className="w-3 h-3" />}
+          label={fmt(job.amount)}
+          className="font-semibold text-foreground"
+        />
+      </div>
+
+      {/* ── Confirmation row ── */}
+      <div className="mx-4 mt-3 rounded-xl bg-muted/50 border border-border/60 px-3 py-2.5 flex items-center gap-4">
+        <ConfirmPin confirmed={job.worker_confirmed} label="You" />
+        <div className="w-px h-4 bg-border" />
+        <ConfirmPin
+          confirmed={job.customer_confirmed}
+          label={job.customer_name.split(" ")[0]}
+        />
+      </div>
+
+      {/* ── Waiting message ── */}
+      {job.worker_confirmed && !job.customer_confirmed && !isCompleted && (
+        <div className="mx-4 mt-2 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          <Clock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>
+            Waiting for {job.customer_name.split(" ")[0]} to confirm.
+            Payment releases once both confirm.
+          </span>
+        </div>
+      )}
+
+      {/* ── Action ── */}
+      <div className="px-4 pt-3 pb-4">
+        {canComplete && (
+          isConfirming ? (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={onConfirmCancel}
+                disabled={isCompleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={onComplete}
+                disabled={isCompleting}
+              >
+                {isCompleting
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Confirming…</>
+                  : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Yes, I'm Done</>}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={onConfirmStart}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+              Mark Job as Complete
+            </Button>
+          )
+        )}
+        {isCompleted && (
+          <p className="text-xs text-emerald-600 flex items-center gap-1.5 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Job complete · payment transferred
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Chip({
+  icon, label, bold, className,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  bold?: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 rounded-full px-2.5 py-1",
+        bold && "text-foreground font-medium",
+        className
+      )}
+    >
+      {icon}
+      {label}
+    </span>
+  );
+}
+
+function ConfirmPin({ confirmed, label }: { confirmed: boolean; label: string }) {
+  return (
+    <span className={cn(
+      "flex items-center gap-1.5 text-xs font-medium",
+      confirmed ? "text-emerald-600" : "text-muted-foreground"
+    )}>
       {confirmed
-        ? <CheckCircle2 className="w-3.5 h-3.5" />
-        : <AlertCircle className="w-3.5 h-3.5" />}
-      {label} {confirmed ? "confirmed" : "pending"}
+        ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+        : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+      <span>{label}</span>
+      <span className={confirmed ? "text-emerald-500" : "text-muted-foreground/60"}>
+        {confirmed ? "confirmed" : "pending"}
+      </span>
     </span>
   );
 }

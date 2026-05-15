@@ -4,6 +4,7 @@ import { TrendingUp } from "lucide-react";
 import { VirtualAccountCard, ClaimVirtualAccountCard } from "@/components/payments/VirtualAccountCard";
 import { TransactionList } from "@/components/payments/TransactionList";
 import { WorkerBankAccountPanel } from "@/components/payments/WorkerBankAccountPanel";
+import { WorkerEarningsSection } from "@/components/payments/WorkerEarningsSection";
 import { usePaymentStore } from "@/store/paymentStore";
 import { useAuthStore } from "@/store/authStore";
 import { useEffect } from "react";
@@ -14,30 +15,43 @@ export default function PaymentsPage() {
   const isWorker = user?.user_type === "worker";
 
   useEffect(() => {
-    fetchVirtualAccount();
-  }, [fetchVirtualAccount]);
+    if (!isWorker) fetchVirtualAccount();
+  }, [fetchVirtualAccount, isWorker]);
+
+  if (isWorker) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+          <p className="text-gray-500 mt-1">
+            Track your earnings and manage your payout bank account.
+          </p>
+        </div>
+
+        {/* Earnings + payout history */}
+        <section>
+          <WorkerEarningsSection />
+        </section>
+
+        {/* Payout bank account */}
+        <section>
+          <WorkerBankAccountPanel />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Wallet</h1>
         <p className="text-gray-500 mt-1">
-          {isWorker
-            ? "Manage your payout account and track your earnings."
-            : "Fund your account via bank transfer and track your transaction history."}
+          Fund your account via bank transfer and track your transaction history.
         </p>
       </div>
 
-      {/* Worker: payout bank account */}
-      {isWorker && (
-        <section>
-          <WorkerBankAccountPanel />
-        </section>
-      )}
-
       <section className="space-y-4">
         <VirtualAccountCard />
-        {/* Show claim option alongside setup when no account is linked yet */}
         {needsSetup && !virtualAccount && <ClaimVirtualAccountCard />}
       </section>
 

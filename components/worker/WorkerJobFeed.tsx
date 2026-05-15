@@ -5,8 +5,10 @@ import { useWorkerJobStore } from "@/store/workerJobStore";
 import type { WorkerProposal } from "@/store/workerJobStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { StreamedJob } from "@/api/types/marketplace-api";
+import { Plus, Check, X } from "lucide-react";
 
 const formatBudget = (v: number | null | undefined) =>
   !v || v === 0 ? "Negotiable" : `₦${Number(v).toLocaleString("en-NG")}`;
@@ -22,6 +24,7 @@ export function WorkerJobFeed() {
     isLoading,
     error,
     fetchJobTypes,
+    fetchSubscriptions,
     fetchProposals,
     startPolling,
     stopPolling,
@@ -34,13 +37,15 @@ export function WorkerJobFeed() {
   const [proposedMin, setProposedMin] = React.useState<Record<string, string>>({});
   const [proposedMax, setProposedMax] = React.useState<Record<string, string>>({});
   const [acceptingJobId, setAcceptingJobId] = React.useState<string | null>(null);
+  const [subscribeOpen, setSubscribeOpen] = React.useState(false);
 
   React.useEffect(() => {
     fetchJobTypes();
+    fetchSubscriptions();
     fetchProposals();
     startPolling();
     return () => stopPolling();
-  }, [fetchJobTypes, fetchProposals, startPolling, stopPolling]);
+  }, [fetchJobTypes, fetchSubscriptions, fetchProposals, startPolling, stopPolling]);
 
   const isSubscribed = (jobTypeId: string) =>
     subscriptions.some((sub) => sub.job_type_id === jobTypeId);
@@ -73,33 +78,68 @@ export function WorkerJobFeed() {
     <div className="space-y-6">
       {/* Job Type Subscriptions */}
       <div className="rounded-lg border bg-card p-4 space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Job Type Subscriptions</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Subscribe to get notified when matching jobs are posted.</p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Job Type Subscriptions</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Only jobs from these types appear in your feed.</p>
+          </div>
+          <Popover open={subscribeOpen} onOpenChange={setSubscribeOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-1">
+              {availableJobTypes.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-muted-foreground">No job types available.</p>
+              ) : (
+                availableJobTypes.map((jt) => {
+                  const subscribed = isSubscribed(jt.id);
+                  return (
+                    <button
+                      key={jt.id}
+                      onClick={() => handleToggleSubscription(jt.id)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded hover:bg-muted transition-colors text-left cursor-pointer"
+                    >
+                      <span
+                        className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+                          subscribed
+                            ? "bg-[var(--orange,#f97316)] border-[var(--orange,#f97316)]"
+                            : "border-border"
+                        )}
+                      >
+                        {subscribed && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                      </span>
+                      {jt.name}
+                    </button>
+                  );
+                })
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
-        {availableJobTypes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No job types available.</p>
+
+        {subscriptions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No subscriptions yet — use Add to subscribe to job types.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {availableJobTypes.map((jobType) => {
-              const subscribed = isSubscribed(jobType.id);
-              return (
-                <Button
-                  key={jobType.id}
-                  variant={subscribed ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleToggleSubscription(jobType.id)}
-                  title={jobType.description}
+            {subscriptions.map((sub) => (
+              <span
+                key={sub.job_type_id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--orange,#f97316)]/40 bg-[var(--orange,#f97316)]/10 px-3 py-1 text-xs font-medium text-[var(--orange,#f97316)]"
+              >
+                {sub.job_type_name}
+                <button
+                  onClick={() => handleToggleSubscription(sub.job_type_id)}
+                  className="hover:opacity-70 transition-opacity cursor-pointer"
+                  aria-label={`Unsubscribe from ${sub.job_type_name}`}
                 >
-                  {subscribed && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                  {jobType.name}
-                </Button>
-              );
-            })}
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import { JobProposalsView } from "@/components/customer/JobProposalsView";
@@ -12,13 +12,30 @@ import { WorkerActiveJobsView } from "@/components/worker/ActiveJobsView";
 type CustomerTab = "posts" | "active";
 type WorkerTab = "feed" | "active";
 
-export default function JobsPage() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function JobsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { getUserType } = useAuthStore();
   const userType = getUserType();
 
-  const [customerTab, setCustomerTab] = useState<CustomerTab>("posts");
-  const [workerTab, setWorkerTab] = useState<WorkerTab>("feed");
+  const tabParam = searchParams.get("tab");
+  const highlightId = searchParams.get("highlight") ?? undefined;
+
+  const [customerTab, setCustomerTab] = useState<CustomerTab>(
+    tabParam === "active" ? "active" : "posts"
+  );
+  const [workerTab, setWorkerTab] = useState<WorkerTab>(
+    tabParam === "active" ? "active" : "feed"
+  );
+
+  // Sync tab if URL param changes (e.g. navigating from payments)
+  useEffect(() => {
+    if (tabParam === "active") {
+      setCustomerTab("active");
+      setWorkerTab("active");
+    }
+  }, [tabParam]);
 
   if (userType === "customer") {
     return (
@@ -75,8 +92,16 @@ export default function JobsPage() {
       </div>
 
       {workerTab === "feed"   && <WorkerJobFeed />}
-      {workerTab === "active" && <WorkerActiveJobsView />}
+      {workerTab === "active" && <WorkerActiveJobsView highlightJobId={highlightId} />}
     </div>
+  );
+}
+
+export default function JobsPage() {
+  return (
+    <Suspense>
+      <JobsPageInner />
+    </Suspense>
   );
 }
 

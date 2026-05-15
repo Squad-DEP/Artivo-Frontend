@@ -174,8 +174,7 @@ export function ActiveJobsView() {
                   ) : (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      className="w-48 bg-emerald-600 hover:bg-emerald-700 text-white"
                       onClick={() => setConfirmingId(job.id)}
                     >
                       <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
