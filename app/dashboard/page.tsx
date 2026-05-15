@@ -176,11 +176,14 @@ function WorkerDashboard({ userName }: { userName: string }) {
   const trustTrend = trustScore?.trend ?? "stable";
   const trustChange = trustScore?.trend_change ?? 0;
   const credit = creditScore?.score ?? 0;
-  const avgRating = reviewSummary?.average_rating ?? 0;
+  const avgRating = workerStats?.average_rating || reviewSummary?.average_rating || 0;
   const totalReviews = reviewSummary?.total_reviews ?? 0;
-  const completionRate = trustScore?.components?.completion_rate ?? 0;
-  const activeJobs = workerStats?.active_jobs ?? 0;
   const completedJobs = workerStats?.completed_jobs ?? 0;
+  const totalJobs = workerStats?.total_jobs ?? 0;
+  const completionRate = totalJobs > 0
+    ? Math.round((completedJobs / totalJobs) * 100)
+    : (trustScore?.components?.completion_rate ?? 0);
+  const activeJobs = workerStats?.active_jobs ?? 0;
   const totalEarned = workerStats?.total_earned ?? 0;
 
   const isLoading = repLoading && !trustScore;

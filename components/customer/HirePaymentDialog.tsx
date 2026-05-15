@@ -53,13 +53,16 @@ export function HirePaymentDialog({
   useEffect(() => {
     // When job is created and payment method is online, open Squad modal
     if (step === "paying" && job && selectedMethod === "online") {
+      const payAmount = proposal.proposed_amount_max && Number(proposal.proposed_amount_max) > Number(proposal.proposed_amount)
+        ? proposal.proposed_amount_max
+        : proposal.proposed_amount;
       openSquadModal(
         user?.email || "",
-        proposal.proposed_amount,
+        payAmount,
         job.id
       );
     }
-  }, [step, job, selectedMethod, openSquadModal, user?.email, proposal.proposed_amount]);
+  }, [step, job, selectedMethod, openSquadModal, user?.email, proposal.proposed_amount, proposal.proposed_amount_max]);
 
   const handleHire = async () => {
     const success = await hireWorker(
