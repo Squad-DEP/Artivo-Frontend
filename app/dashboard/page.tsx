@@ -616,7 +616,7 @@ function QuickActionButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+      className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/50 hover:bg-white/90 transition-colors border border-gray-100"
     >
       <div className="w-10 h-10 rounded-lg bg-[var(--orange)]/10 text-[var(--orange)] flex items-center justify-center">
         {icon}

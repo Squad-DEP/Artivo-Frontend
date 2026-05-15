@@ -31,7 +31,7 @@ export default function RootLayout({
         className={`${inter.className} antialiased tracking-tight flex w-full h-full justify-center`}
       >
         <AuthProvider>
-          <main className="flex flex-col h-screen w-full max-w-[120rem] mx-auto">
+          <main className="flex flex-col h-screen overflow-y-auto w-full max-w-[120rem] mx-auto">
             {children}
           </main>
         </AuthProvider>

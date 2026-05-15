@@ -36,6 +36,7 @@ export default function CreateJobPage() {
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [textInput, setTextInput] = useState("");
   const [inputMode, setInputMode] = useState<"voice" | "text">("voice");
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -59,12 +60,18 @@ export default function CreateJobPage() {
   }, [isRecording]);
 
   const startRecording = async () => {
+    setAudioError(null);
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("NotSupported");
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const mimeType =
+        ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find(
+          (t) => MediaRecorder.isTypeSupported(t)
+        ) ?? "";
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const actualType = recorder.mimeType || mimeType || "audio/webm";
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -73,17 +80,23 @@ export default function CreateJobPage() {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const blob = new Blob(chunksRef.current, { type: actualType });
+        const ext = actualType.includes("mp4") ? "mp4" : actualType.includes("ogg") ? "ogg" : "webm";
         const formData = new FormData();
-        formData.append("audio", blob, "recording.webm");
+        formData.append("audio", blob, `recording.${ext}`);
         await submitVoice(formData);
       };
 
       recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
-    } catch {
-      alert("Microphone access denied. Please allow microphone access and try again.");
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.name === "NotAllowedError"
+          ? "Microphone access denied. Please allow microphone access in your browser settings."
+          : "Could not start recording on this device. Use the text option instead.";
+      setAudioError(msg);
+      setInputMode("text");
     }
   };
 
@@ -96,7 +109,6 @@ export default function CreateJobPage() {
     e.preventDefault();
     const trimmed = textInput.trim();
     if (!trimmed || isProcessing) return;
-    setTextInput("");
     await submitText(trimmed);
   };
 
@@ -232,6 +244,11 @@ export default function CreateJobPage() {
           {/* Text input */}
           {inputMode === "text" && (
             <form onSubmit={handleTextSubmit} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+              {audioError && (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                  {audioError}
+                </div>
+              )}
               <textarea
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}

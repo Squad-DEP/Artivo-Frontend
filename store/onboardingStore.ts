@@ -346,11 +346,13 @@ export const useOnboardingStore = create<OnboardingState>()(
             if (cityLocation) confirmationFields.location = cityLocation;
             if (bio) confirmationFields.bio = bio;
           } else {
-            const { clientName, serviceRequired } = raw as {
+            const { clientName, cityLocation, serviceRequired } = raw as {
               clientName?: string | null;
+              cityLocation?: string | null;
               serviceRequired?: string | null;
             };
             if (clientName) confirmationFields.fullName = clientName;
+            if (cityLocation) confirmationFields.location = cityLocation;
             if (serviceRequired) confirmationFields.skills = serviceRequired;
           }
 
@@ -411,11 +413,13 @@ export const useOnboardingStore = create<OnboardingState>()(
             if (cityLocation) confirmationFields.location = cityLocation;
             if (bio) confirmationFields.bio = bio;
           } else {
-            const { clientName, serviceRequired } = raw as {
+            const { clientName, cityLocation, serviceRequired } = raw as {
               clientName?: string | null;
+              cityLocation?: string | null;
               serviceRequired?: string | null;
             };
             if (clientName) confirmationFields.fullName = clientName;
+            if (cityLocation) confirmationFields.location = cityLocation;
             if (serviceRequired) confirmationFields.skills = serviceRequired;
           }
 

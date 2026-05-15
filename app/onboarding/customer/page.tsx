@@ -59,6 +59,7 @@ export default function CustomerOnboardingPage() {
   const [submitted, setSubmitted] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [useTextInput, setUseTextInput] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -89,12 +90,24 @@ export default function CustomerOnboardingPage() {
 
   // Voice recording
   const startRecording = async () => {
+    setAudioError(null);
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setAudioError("Voice recording is not supported in this browser. Please type your response below.");
+        setUseTextInput(true);
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+      const mimeType = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+      ].find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
+
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -104,9 +117,11 @@ export default function CustomerOnboardingPage() {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const actualType = mediaRecorder.mimeType || mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: actualType });
+        const ext = actualType.includes("mp4") ? "mp4" : actualType.includes("ogg") ? "ogg" : "webm";
         const formData = new FormData();
-        formData.append("audio", blob, "recording.webm");
+        formData.append("audio", blob, `recording.${ext}`);
         formData.append("userType", "customer");
         await submitVoice(formData);
       };
@@ -114,7 +129,11 @@ export default function CustomerOnboardingPage() {
       mediaRecorder.start();
       setIsRecording(true);
       setTranscription("");
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error && err.name === "NotAllowedError"
+        ? "Microphone access denied. Please allow microphone access and try again."
+        : "Could not start recording. Please type your response instead.";
+      setAudioError(msg);
       setUseTextInput(true);
     }
   };
@@ -210,18 +229,18 @@ export default function CustomerOnboardingPage() {
   // --- RECORDING PHASE ---
   if (phase === "recording") {
     return (
-      <main className="flex flex-col min-h-screen w-full">
+      <main className="flex flex-col min-h-screen w-full overflow-y-auto">
         {/* Top bar with logo */}
-        <div className="flex items-center px-6 sm:px-10 py-4 border-b border-gray-100">
+        <div className="flex items-center px-6 sm:px-10 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2.5">
             <Image src="/logo_primary.svg" alt="Artivo" width={36} height={36} />
             <span className="text-foreground text-xl font-semibold tracking-tight">Artivo</span>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row flex-1">
+        <div className="flex flex-col lg:flex-row lg:flex-1">
           {/* Left column */}
-          <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 py-8 relative overflow-hidden">
+          <div className="lg:flex-1 flex flex-col justify-center px-6 sm:px-12 py-8 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-72 h-72 bg-amber-100/40 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-56 h-56 bg-amber-50/60 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none" />
 
@@ -272,6 +291,11 @@ export default function CustomerOnboardingPage() {
 
               {useTextInput && (
                 <div className="mb-8">
+                  {audioError && (
+                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3">
+                      {audioError}
+                    </p>
+                  )}
                   <textarea
                     value={transcription}
                     onChange={(e) => setTranscription(e.target.value)}
@@ -315,7 +339,7 @@ export default function CustomerOnboardingPage() {
           </div>
 
           {/* Right column — Orange panel */}
-          <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 py-10 bg-[var(--orange)]/90 relative overflow-hidden">
+          <div className="lg:flex-1 flex flex-col justify-center px-6 sm:px-12 py-10 bg-[var(--orange)]/90 relative overflow-hidden">
             <div className="absolute top-8 right-8 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none" />
             <div className="absolute bottom-12 left-6 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
 
