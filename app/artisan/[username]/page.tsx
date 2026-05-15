@@ -30,7 +30,7 @@ async function fetchWorkerByUsername(
 
   try {
     const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/v1/profile/${username}`, {
+    const res = await fetch(`${baseUrl}/v1/public/profile/${username}`, {
       next: { revalidate: 60 },
     });
 

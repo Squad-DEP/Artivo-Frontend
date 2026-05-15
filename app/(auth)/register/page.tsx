@@ -28,6 +28,7 @@ const formSchema = z
     confirmPassword: z.string().min(1, "Confirm password is required"),
     role: z.enum(["worker", "customer"], {
       required_error: "Please select a role",
+      message: "Please select a role",
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -70,6 +71,7 @@ export default function AuthRegisterPage() {
 
     if (!validation.success) {
       const formatted = validation.error.format();
+      console.log(formatted)
       setFormErrors({
         firstName: formatted.firstName?._errors?.[0] || "",
         lastName: formatted.lastName?._errors?.[0] || "",
@@ -239,7 +241,7 @@ export default function AuthRegisterPage() {
               className="block w-full rounded-[19px] mt-2 border bg-accent/50 placeholder:text-foreground/30 px-4 sm:px-6 py-3 sm:py-4 text-[16px] focus:ring-0"
             />
             {formErrors.password && (
-              <p className="absolute text-red-500 text-[13px] top-1 right-0">
+              <p className="sm:absolute text-red-500 text-[13px] top-1 right-0">
                 {formErrors.password}
               </p>
             )}
@@ -263,7 +265,7 @@ export default function AuthRegisterPage() {
               className="block w-full rounded-[19px] mt-2 border bg-accent/50 placeholder:text-foreground/30 px-4 sm:px-6 py-3 sm:py-4 text-[16px] focus:ring-0"
             />
             {formErrors.confirmPassword && (
-              <p className="absolute text-red-500 text-[13px] top-1 right-0">
+              <p className="sm:absolute text-red-500 text-[13px] top-1 right-0">
                 {formErrors.confirmPassword}
               </p>
             )}
@@ -322,6 +324,7 @@ export default function AuthRegisterPage() {
           Already have an account?{" "}
           <Link
             href="/login"
+            onClick={() => clearError()}
             className="text-[var(--orange)] hover:underline font-bold"
           >
             Sign In

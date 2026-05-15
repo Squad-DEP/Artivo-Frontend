@@ -41,9 +41,9 @@ export default function MarketplacePage() {
   const isAiRanked = !!searchQuery;
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-gray-50">
+    <div className="min-h-screen overflow-y-auto">
       {/* Hero Section - Intent Driven */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[var(--artivo-warm)] via-amber-50/50 to-gray-50 pt-28 pb-6">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[var(--artivo-warm)] via-amber-50/50 to-white pt-28 pb-6">
         <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <button
             onClick={() => router.back()}
@@ -83,7 +83,7 @@ export default function MarketplacePage() {
         </div>
 
         {/* Decorative gradient fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-b from-transparent to-gray-50" />
+        {/* <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-b from-transparent to-gray-50" /> */}
       </section>
 
       {/* Main Content */}

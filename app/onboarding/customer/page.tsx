@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/store/onboardingStore";
+import { useAuthStore } from "@/store/authStore";
 
 type OnboardingPhase = "intro" | "recording" | "review";
 
@@ -36,6 +37,7 @@ const FIELDS: FieldConfig[] = [
 
 export default function CustomerOnboardingPage() {
   const router = useRouter();
+  const { isOnboardingComplete } = useAuthStore();
   const {
     confirmationFields,
     isProcessing,
@@ -59,6 +61,21 @@ export default function CustomerOnboardingPage() {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const editInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Redirect already-onboarded users to dashboard
+  useEffect(() => {
+    if (isOnboardingComplete()) {
+      router.replace("/dashboard");
+    }
+  }, [isOnboardingComplete, router]);
+
+  // Focus the edit input when a field is selected for editing
+  useEffect(() => {
+    if (editingField && editInputRef.current) {
+      editInputRef.current.focus();
+    }
+  }, [editingField]);
 
   useEffect(() => {
     initOnboarding("customer");
@@ -277,7 +294,7 @@ export default function CustomerOnboardingPage() {
               )}
 
               {!useTextInput && (
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm max-sm:hidden">
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className={cn("w-4 h-4", isRecording ? "text-amber-500 animate-pulse" : "text-amber-400")} />
                     <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">Live Transcription</span>
@@ -408,62 +425,47 @@ export default function CustomerOnboardingPage() {
             return (
               <div
                 key={field.key}
+                onClick={() => !isEditing && startEditing(field.key)}
                 className={cn(
-                  "rounded-xl border p-4 transition-all",
+                  "rounded-xl p-4 transition-all cursor-pointer",
                   field.colSpan === "full" && "sm:col-span-2",
                   isEditing
-                    ? "border-[var(--orange)] bg-[var(--orange)]/5 ring-1 ring-[var(--orange)]/20"
-                    : "border-gray-200 bg-white hover:border-[var(--orange)]/30"
+                    ? "border border-[var(--orange)] bg-[var(--orange)]/5"
+                    : "border border-gray-200 bg-white hover:border-[var(--orange)]/30"
                 )}
               >
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className={cn("transition-colors", isEditing ? "text-[var(--orange)]" : "text-foreground/50")}>{field.icon}</span>
+                    <span className="text-sm font-medium text-foreground">{field.label}</span>
+                  </div>
+                  {!isEditing && <Pencil className="w-3.5 h-3.5 text-foreground/30" />}
+                </div>
                 {isEditing ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-foreground/50">{field.icon}</span>
-                      <span className="text-sm font-medium text-foreground">{field.label}</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      autoFocus
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[var(--orange)] focus:ring-1 focus:ring-[var(--orange)]/20"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit();
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={saveEdit}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-[var(--orange)] rounded-lg hover:bg-[var(--orange-hover)]"
-                      >
-                        <Check className="w-3 h-3" /> Save
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="px-3 py-1.5 text-xs font-medium text-foreground/60 bg-gray-100 rounded-lg hover:bg-gray-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="w-full p-0 h-5 bg-transparent pl-6 text-sm text-foreground outline-none placeholder:text-foreground/30"
+                    placeholder={field.placeholder}
+                    onBlur={saveEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.currentTarget.blur(); }
+                      if (e.key === "Escape") { cancelEdit(); }
+                    }}
+                  />
                 ) : (
-                  <div className="cursor-pointer" onClick={() => startEditing(field.key)}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-foreground/50">{field.icon}</span>
-                        <span className="text-sm font-medium text-foreground">{field.label}</span>
-                      </div>
-                      <Pencil className="w-3.5 h-3.5 text-foreground/30" />
-                    </div>
-                    <p className={cn(
-                      "mt-1.5 text-sm pl-6",
+                  <input
+                    type="text"
+                    value={value || "Not provided"}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className={cn (
+                      "w-full p-0 h-5 bg-transparent pl-6 text-sm text-foreground outline-none placeholder:text-foreground/30",
                       value ? "text-foreground/80" : "text-foreground/30 italic"
-                    )}>
-                      {value || "Not provided"}
-                    </p>
-                  </div>
+                    )}
+                    readOnly
+                  />
                 )}
               </div>
             );

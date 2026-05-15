@@ -545,14 +545,6 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
                 </div>
               )}
 
-              <hr className="border-gray-100" />
-
-              {/* Project description input */}
-              <div className="relative">
-                <input type="text" placeholder="Describe your project..." className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl text-sm placeholder:text-gray-400 focus:outline-none focus:border-[var(--orange)] focus:ring-1 focus:ring-[var(--orange)]/30" readOnly />
-                <Send className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
-
               {/* CTA Buttons */}
               <div className="space-y-3">
                 <HireMeButton workerUsername={worker.username ?? ""} workerName={worker.display_name.split(" ")[0]} workerUserId={worker.user_id} onHireClick={() => setIsHireDialogOpen(true)} />
@@ -576,10 +568,6 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <Mail className="w-4 h-4 text-gray-400" />
                     <span>{worker.username ?? worker.display_name.toLowerCase().replace(/\s/g, ".")}@artivo.com</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span>{worker.location.city}, {worker.location.state}</span>
                   </div>
                 </div>
               </div>

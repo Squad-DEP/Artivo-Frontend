@@ -328,17 +328,26 @@ export const useOnboardingStore = create<OnboardingState>()(
           const confirmationFields: Record<string, string> = {};
 
           if (role === "worker") {
-            const r = raw as Record<string, unknown>;
-            const fullName = (r.fullName || r.profession) as string | null | undefined;
-            const skills = r.skills as string | string[] | null | undefined;
-            const yearsOfExperience = r.yearsOfExperience as string | number | null | undefined;
-            const cityLocation = r.cityLocation as string | null | undefined;
-            const avgPay = (r.avgPay || r.expectedHourlyRate) as string | null | undefined;
-            const bio = r.bio as string | null | undefined;
+            const { fullName, profession, skills, yearsOfExperience, cityLocation, avgPay, expectedHourlyRate, bio, tagline } = raw as {
+              fullName?: string | null;
+              profession?: string | null;
+              skills?: string | string[] | null;
+              yearsOfExperience?: string | number | null;
+              cityLocation?: string | null;
+              avgPay?: string | null;
+              expectedHourlyRate?: string | null;
+              bio?: string | null;
+              tagline?: string | null;
+            };
             if (fullName) confirmationFields.fullName = fullName;
-            if (skills != null) confirmationFields.skills = Array.isArray(skills) ? skills.join(", ") : String(skills);
+            const skillsValue = profession
+              ? (skills && (Array.isArray(skills) ? skills.length > 0 : true))
+                ? `${profession}, ${Array.isArray(skills) ? skills.join(", ") : String(skills)}`
+                : profession
+              : (skills != null ? (Array.isArray(skills) ? skills.join(", ") : String(skills)) : "");
+            if (skillsValue) confirmationFields.skills = skillsValue;
             if (yearsOfExperience != null) confirmationFields.experience = String(yearsOfExperience);
-            if (avgPay) confirmationFields.avgPay = avgPay;
+            if (avgPay || expectedHourlyRate) confirmationFields.avgPay = (avgPay || expectedHourlyRate) as string;
             if (cityLocation) confirmationFields.location = cityLocation;
             if (bio) confirmationFields.bio = bio;
           } else {
@@ -384,17 +393,26 @@ export const useOnboardingStore = create<OnboardingState>()(
           const confirmationFields: Record<string, string> = {};
 
           if (role === "worker") {
-            const r = raw as Record<string, unknown>;
-            const fullName = (r.fullName || r.profession) as string | null | undefined;
-            const skills = r.skills as string | string[] | null | undefined;
-            const yearsOfExperience = r.yearsOfExperience as string | number | null | undefined;
-            const cityLocation = r.cityLocation as string | null | undefined;
-            const avgPay = (r.avgPay || r.expectedHourlyRate) as string | null | undefined;
-            const bio = r.bio as string | null | undefined;
+            const { fullName, profession, skills, yearsOfExperience, cityLocation, avgPay, expectedHourlyRate, bio, tagline } = raw as {
+              fullName?: string | null;
+              profession?: string | null;
+              skills?: string | string[] | null;
+              yearsOfExperience?: string | number | null;
+              cityLocation?: string | null;
+              avgPay?: string | null;
+              expectedHourlyRate?: string | null;
+              bio?: string | null;
+              tagline?: string | null;
+            };
             if (fullName) confirmationFields.fullName = fullName;
-            if (skills != null) confirmationFields.skills = Array.isArray(skills) ? skills.join(", ") : String(skills);
+            const skillsValue = profession
+              ? (skills && (Array.isArray(skills) ? skills.length > 0 : true))
+                ? `${profession}, ${Array.isArray(skills) ? skills.join(", ") : String(skills)}`
+                : profession
+              : (skills != null ? (Array.isArray(skills) ? skills.join(", ") : String(skills)) : "");
+            if (skillsValue) confirmationFields.skills = skillsValue;
             if (yearsOfExperience != null) confirmationFields.experience = String(yearsOfExperience);
-            if (avgPay) confirmationFields.avgPay = avgPay;
+            if (avgPay || expectedHourlyRate) confirmationFields.avgPay = (avgPay || expectedHourlyRate) as string;
             if (cityLocation) confirmationFields.location = cityLocation;
             if (bio) confirmationFields.bio = bio;
           } else {

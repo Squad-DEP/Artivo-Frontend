@@ -45,13 +45,13 @@ export default function AuthLoginPage() {
 
       const success = await signIn(validatedData.email, validatedData.password);
       if (success) {
-        const { user } = useAuthStore.getState();
+        const { user, isOnboardingComplete } = useAuthStore.getState();
         const userType = user?.user_type || user?.user_metadata?.user_type;
 
         if (!userType) {
           // No role found, send to profile selection
           router.push("/register/profile");
-        } else if (!user?.onboarded && !user?.onboarding_completed) {
+        } else if (!isOnboardingComplete()) {
           // Role set but onboarding not done
           if (userType === "worker") {
             router.push("/onboarding/worker");
@@ -175,6 +175,7 @@ export default function AuthLoginPage() {
           Are you a new user?{" "}
           <Link
             href="/register"
+            onClick={() => clearError()}
             className="text-[var(--orange)] hover:underline font-bold"
           >
             Create Account

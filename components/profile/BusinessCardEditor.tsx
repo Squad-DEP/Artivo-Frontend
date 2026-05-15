@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Copy, Check, Download, Star } from "lucide-react";
+import { Copy, Check, Download, Star, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getApiBaseUrl } from "@/api/api-service";
+import { useAuthStore } from "@/store/authStore";
 
 /** Color theme presets for the business card */
 const THEMES = {
@@ -98,30 +100,48 @@ export function BusinessCardEditor({
     }
   }, [profileUrl]);
 
-  const handleDownload = useCallback(async () => {
-    if (!cardRef.current) return;
+  const [downloading, setDownloading] = useState(false);
 
+  const handleDownload = useCallback(async () => {
+    setDownloading(true);
     try {
-      // Dynamically import html2canvas if available
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mod = await (import("html2canvas" as any) as Promise<{ default: any }>);
-      const html2canvas = mod.default;
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: null,
+      const baseUrl = getApiBaseUrl();
+      const token = useAuthStore.getState().user?.access_token;
+
+      const response = await fetch(`${baseUrl}/v1/artisan/identity-card`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username,
+          artisan_name: name,
+          trade: primarySkill,
+          location: location || "N/A",
+          contact: phone || profileUrl,
+          tagline: tagline || undefined,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.download = `${username}-business-card.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = url;
       link.click();
-    } catch {
-      // Fallback: alert user that download requires html2canvas
-      alert(
-        "Download requires the html2canvas package. Install it with: npm install html2canvas"
-      );
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Business card download failed:", err);
+      alert("Failed to download business card. Please try again.");
+    } finally {
+      setDownloading(false);
     }
-  }, [username]);
+  }, [username, name, primarySkill, tagline, phone, location, profileUrl]);
 
   const renderStars = (value: number) => {
     const fullStars = Math.floor(value);
@@ -142,17 +162,17 @@ export function BusinessCardEditor({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:flex gap-6">
       {/* Card Preview */}
       <div
         ref={cardRef}
         className={cn(
-          "rounded-xl border p-6 shadow-lg transition-all duration-300",
+          "max-sm:w-full aspect-[380/220] sm:w-[380px] rounded-xl border p-6 shadow-lg transition-all duration-300",
           theme.bg,
           theme.border,
           layout === "horizontal"
-            ? "flex items-center gap-6 max-w-lg"
-            : "flex flex-col items-center text-center max-w-xs mx-auto"
+            ? "flex items-center gap-6"
+            : "flex flex-col items-center text-center"
         )}
       >
         {/* Avatar placeholder */}
@@ -206,72 +226,78 @@ export function BusinessCardEditor({
         </div>
       </div>
 
-      {/* Theme Selector */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">
-          Color Theme
-        </label>
-        <div className="flex gap-2 flex-wrap">
-          {(Object.keys(THEMES) as ThemeKey[]).map((key) => (
+      <div className="space-y-6">
+        {/* Theme Selector */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">
+            Color Theme
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {(Object.keys(THEMES) as ThemeKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSelectedTheme(key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                  selectedTheme === key
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                )}
+              >
+                {THEMES[key].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Layout Selector */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Layout</label>
+          <div className="flex gap-2">
             <button
-              key={key}
-              onClick={() => setSelectedTheme(key)}
+              onClick={() => setLayout("horizontal")}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                selectedTheme === key
+                layout === "horizontal"
                   ? "border-blue-500 bg-blue-50 text-blue-700"
                   : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
               )}
             >
-              {THEMES[key].label}
+              Horizontal
             </button>
-          ))}
+            {/* <button
+              onClick={() => setLayout("vertical")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                layout === "vertical"
+                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+              )}
+            >
+              Vertical
+            </button> */}
+          </div>
         </div>
-      </div>
 
-      {/* Layout Selector */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Layout</label>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setLayout("horizontal")}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-              layout === "horizontal"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleShare} className="gap-2">
+            {copied ? (
+              <Check className="w-4 h-4 text-green-500" />
+            ) : (
+              <Copy className="w-4 h-4" />
             )}
-          >
-            Horizontal
-          </button>
-          <button
-            onClick={() => setLayout("vertical")}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-              layout === "vertical"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+            {copied ? "Link Copied!" : "Share Link"}
+          </Button>
+          <Button variant="default" onClick={handleDownload} disabled={downloading} className="gap-2">
+            {downloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
             )}
-          >
-            Vertical
-          </button>
+            {downloading ? "Downloading..." : "Download Card"}
+          </Button>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3">
-        <Button variant="outline" onClick={handleShare} className="gap-2">
-          {copied ? (
-            <Check className="w-4 h-4 text-green-500" />
-          ) : (
-            <Copy className="w-4 h-4" />
-          )}
-          {copied ? "Link Copied!" : "Share Link"}
-        </Button>
-        <Button variant="default" onClick={handleDownload} className="gap-2">
-          <Download className="w-4 h-4" />
-          Download Card
-        </Button>
       </div>
     </div>
   );
