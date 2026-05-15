@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { apiService } from "@/api/api-service";
+import { useAuthStore } from "@/store/authStore";
 import type {
   Job,
   JobApplication,
@@ -412,30 +413,19 @@ export const useJobStore = create<JobState>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      // Attempt to fetch both worker and customer stats
-      // The API will return the appropriate one based on the user's role
-      try {
-        const workerStats = await apiService.get<WorkerJobStats>(
-          "/jobs/stats/worker"
-        );
-        set((state) => ({ workerStats, isLoading: false }));
-      } catch {
-        // Not a worker, try customer stats
-        try {
-          const customerStats = await apiService.get<CustomerJobStats>(
-            "/jobs/stats/customer"
-          );
-          set((state) => ({ customerStats, isLoading: false }));
-        } catch {
-          set({ isLoading: false });
-        }
+      const user = useAuthStore.getState().user;
+      const role = user?.user_metadata?.user_type;
+
+      if (role === "worker") {
+        const workerStats = await apiService.get<WorkerJobStats>("/jobs/stats/worker");
+        set({ workerStats, isLoading: false });
+      } else {
+        const customerStats = await apiService.get<CustomerJobStats>("/jobs/stats/customer");
+        set({ customerStats, isLoading: false });
       }
     } catch (error) {
       set({
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch job stats",
+        error: error instanceof Error ? error.message : "Failed to fetch job stats",
         isLoading: false,
       });
     }
