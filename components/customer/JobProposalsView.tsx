@@ -230,8 +230,8 @@ export function JobProposalsView() {
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-sm font-semibold text-primary">
                       {formatAmount(proposal.proposed_amount)}
-                      {proposal.proposed_amount_max && proposal.proposed_amount_max > proposal.proposed_amount
-                        ? ` – ${formatAmount(proposal.proposed_amount_max)}`
+                      {proposal.proposed_amount_max && Number(proposal.proposed_amount_max) > Number(proposal.proposed_amount)
+                        ? ` – ${formatAmount(Number(proposal.proposed_amount_max))}`
                         : ""}
                     </span>
                     <span className="text-xs text-muted-foreground flex items-center gap-1">

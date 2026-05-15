@@ -142,9 +142,9 @@ export function HirePaymentDialog({
         <div className="bg-gray-50 rounded-xl p-4 text-center">
           <p className="text-sm text-gray-600">Job Amount</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            ₦{proposal.proposed_amount.toLocaleString("en-NG")}
-            {proposal.proposed_amount_max && proposal.proposed_amount_max > proposal.proposed_amount
-              ? ` – ₦${proposal.proposed_amount_max.toLocaleString("en-NG")}`
+            ₦{Number(proposal.proposed_amount).toLocaleString("en-NG")}
+            {proposal.proposed_amount_max && Number(proposal.proposed_amount_max) > Number(proposal.proposed_amount)
+              ? ` – ₦${Number(proposal.proposed_amount_max).toLocaleString("en-NG")}`
               : ""}
           </p>
         </div>

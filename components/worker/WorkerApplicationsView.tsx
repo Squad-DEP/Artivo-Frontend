@@ -67,7 +67,7 @@ function ProposalCard({ proposal }: { proposal: WorkerProposal }) {
         <span className="text-xs text-muted-foreground">Your price range</span>
         <span className="text-sm font-semibold text-foreground">
           ₦{Number(proposal.proposed_amount).toLocaleString("en-NG")}
-          {proposal.proposed_amount_max && proposal.proposed_amount_max > proposal.proposed_amount
+          {proposal.proposed_amount_max && Number(proposal.proposed_amount_max) > Number(proposal.proposed_amount)
             ? ` – ₦${Number(proposal.proposed_amount_max).toLocaleString("en-NG")}`
             : ""}
         </span>
