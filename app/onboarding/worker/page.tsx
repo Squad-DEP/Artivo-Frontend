@@ -353,7 +353,7 @@ export default function WorkerOnboardingPage() {
           </div>
 
           {/* Right column — Orange panel */}
-          <div className="lg:flex-1 flex flex-col justify-center px-6 sm:px-12 py-10 bg-[var(--orange)]/90 relative overflow-hidden">
+          <div ref={aiPanelRef} className="lg:flex-1 flex flex-col justify-center px-6 sm:px-12 py-10 bg-[var(--orange)]/90 relative overflow-hidden">
             <div className="absolute top-8 right-8 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none" />
             <div className="absolute bottom-12 left-6 w-24 h-24 rounded-full bg-white/5 blur-xl pointer-events-none" />
 
