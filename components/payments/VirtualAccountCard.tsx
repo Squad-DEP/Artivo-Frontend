@@ -125,22 +125,30 @@ export function VirtualAccountCard({ variant = "wallet" }: VirtualAccountCardPro
           </p>
         </div>
 
-        <div className="bg-white/10 rounded-lg p-3 space-y-1">
-          <p className="text-xs opacity-70">Account Number</p>
-          <div className="flex items-center justify-between">
-            <p className="text-lg font-mono font-semibold tracking-wider">
-              {virtualAccount.account_number}
-            </p>
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 transition-colors"
-              aria-label={copied ? "Copied" : "Copy account number"}
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? "Copied" : "Copy"}
-            </button>
+        {/* Only show the account number if it's a real one — sandbox accounts use "SANDBOX" as placeholder */}
+        {virtualAccount.account_number && virtualAccount.account_number !== "SANDBOX" ? (
+          <div className="bg-white/10 rounded-lg p-3 space-y-1">
+            <p className="text-xs opacity-70">Account Number</p>
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-mono font-semibold tracking-wider">
+                {virtualAccount.account_number}
+              </p>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/15 hover:bg-white/25 transition-colors"
+                aria-label={copied ? "Copied" : "Copy account number"}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : isPayoutVariant ? (
+          <div className="bg-white/10 rounded-lg p-3">
+            <p className="text-xs opacity-70">Status</p>
+            <p className="text-sm font-medium mt-0.5">Sandbox mode — balance tracked internally</p>
+          </div>
+        ) : null}
       </div>
 
       {/* Bank details */}
@@ -273,12 +281,12 @@ export function ClaimVirtualAccountCard() {
   };
 
   return (
-    <div className="rounded-xl border border-dashed border-blue-300 bg-blue-50 p-5 space-y-3">
+    <div className="rounded-xl border border-dashed border-orange-300 bg-orange-50 p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <Link className="w-4 h-4 text-blue-600" />
-        <p className="text-sm font-semibold text-blue-800">Link Existing Account</p>
+        <Link className="w-4 h-4 text-orange-500" />
+        <p className="text-sm font-semibold text-orange-800">Link Existing Account</p>
       </div>
-      <p className="text-xs text-blue-700">
+      <p className="text-xs text-orange-700">
         Enter your Squad virtual account number to link it to your profile.
       </p>
       <div className="flex gap-2">

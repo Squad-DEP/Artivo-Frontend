@@ -3,8 +3,8 @@
 import * as React from "react";
 import {
   Loader2, CheckCircle2, Clock, Banknote,
-  RefreshCw, TrendingUp, Wallet, XCircle, ArrowRight,
-  ArrowDownLeft, AlertTriangle, User, ChevronRight,
+  RefreshCw, Wallet, XCircle,
+  ArrowDownLeft, AlertTriangle, User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -156,15 +156,13 @@ export function WorkerEarningsSection() {
   }
 
   const { summary, payouts } = data;
-  const hasPendingIssue = summary.failed_payout > 0;
   const outstanding = summary.failed_payout + summary.pending_payout;
 
   return (
     <div className="space-y-5">
-      {/* Outstanding pill */}
+      {/* Only show the outstanding pill when there's money waiting to be collected */}
       {outstanding > 0 && (
         <div className="w-full rounded-full bg-[var(--orange,#f97316)] px-7 py-5 flex items-center justify-between gap-4">
-          {/* Left: amount + label */}
           <div className="min-w-0">
             <p className="text-white/80 px-10 text-xs font-medium uppercase tracking-widest leading-none mb-1">
               Outstanding
@@ -172,55 +170,12 @@ export function WorkerEarningsSection() {
             <p className="text-white px-5 text-3xl md:text-5xl font-extrabold leading-none tracking-tight">
               {fmt(outstanding)}
             </p>
-            {/* <p className="text-white/70 px-10 text-xs mt-1.5 leading-snug">
-              {summary.pending_payout > 0 && summary.failed_payout > 0
-                ? "Transfer in progress + awaiting bank account"
-                : summary.pending_payout > 0
-                ? "Transfer in progress — arrives soon"
-                : "Add your bank account below to receive this"}
-            </p> */}
           </div>
-
-          {/* Right: big arrow */}
           <div className="shrink-0 w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
             <ArrowDownLeft className="w-7 h-7 text-white" strokeWidth={2.5} />
           </div>
         </div>
       )}
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <SummaryCard
-          icon={<TrendingUp className="w-4 h-4 text-emerald-600" />}
-          label="Total earned"
-          value={fmt(summary.total_earned)}
-          sub="from completed jobs"
-        />
-        <SummaryCard
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-          label="Paid out"
-          value={fmt(summary.total_paid_out)}
-          sub="transferred to bank"
-        />
-        {summary.pending_payout > 0 ? (
-          <SummaryCard
-            icon={<Clock className="w-4 h-4 text-amber-500" />}
-            label="Pending transfer"
-            value={fmt(summary.pending_payout)}
-            sub="usually within minutes"
-            highlight="amber"
-          />
-        ) : hasPendingIssue ? (
-          <SummaryCard
-            icon={<AlertTriangle className="w-4 h-4 text-orange-500" />}
-            label="Needs attention"
-            value={fmt(summary.failed_payout)}
-            sub="add bank account to release"
-            highlight="orange"
-          />
-        ) : null}
-      </div>
-
 
       {/* Per-job payout list */}
       <div className="space-y-2">
@@ -316,32 +271,3 @@ export function WorkerEarningsSection() {
   );
 }
 
-function SummaryCard({
-  icon,
-  label,
-  value,
-  sub,
-  highlight,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-  highlight?: "amber" | "orange";
-}) {
-  const borderCls =
-    highlight === "amber"
-      ? "border-amber-200 bg-amber-50"
-      : highlight === "orange"
-      ? "border-orange-200 bg-orange-50"
-      : "border-gray-200 bg-gray-50";
-
-  return (
-    <div className={cn("rounded-xl border p-4 space-y-1", borderCls)}>
-      <div className="flex items-center gap-1.5">{icon}</div>
-      <p className="text-xl font-bold text-foreground leading-tight">{value}</p>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="text-xs text-muted-foreground">{sub}</p>
-    </div>
-  );
-}

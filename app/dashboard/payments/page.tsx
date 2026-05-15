@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, Building2 } from "lucide-react";
+import { TrendingUp, Building2, ArrowUpFromLine, Landmark, CheckCircle2, Banknote } from "lucide-react";
 import { VirtualAccountCard, ClaimVirtualAccountCard } from "@/components/payments/VirtualAccountCard";
 import { VirtualAccountSetup } from "@/components/payments/VirtualAccountSetup";
 import { TransactionList } from "@/components/payments/TransactionList";
@@ -34,13 +34,8 @@ export default function PaymentsPage() {
         {/* Earnings + payout history */}
         <WorkerEarningsSection />
 
-        {/* Account section */}
+        {/* Payout account card */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Payout Account
-          </h2>
-
-          {/* Skeleton while loading, then virtual account or setup */}
           {isLoading ? (
             <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
           ) : virtualAccount ? (
@@ -48,11 +43,43 @@ export default function PaymentsPage() {
           ) : (
             <VirtualAccountSetup />
           )}
+        </div>
 
-          {/* External bank account — coming soon */}
-          <div className="flex items-center gap-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
+        {/* How payouts work */}
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Banknote className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">How you get paid</h2>
+            <span className="ml-auto inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              Live only
+            </span>
+          </div>
+
+          <ol className="space-y-3">
+            {[
+              {
+                icon: <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />,
+                text: "Both you and the customer mark the job complete. This releases the escrow.",
+              },
+              {
+                icon: <ArrowUpFromLine className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />,
+                text: "Artivo immediately initiates a transfer from its Squad merchant wallet to your registered bank account via NIP.",
+              },
+              {
+                icon: <Landmark className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />,
+                text: "Your bank credits you within minutes. No manual action needed — it's fully automatic.",
+              },
+            ].map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                {step.icon}
+                <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="border-t border-gray-200 pt-3 flex items-center gap-3">
             <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-            <p className="text-sm text-muted-foreground flex-1">External bank account</p>
+            <p className="text-xs text-muted-foreground flex-1">External bank account registration</p>
             <span className="inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
               Coming soon
             </span>
@@ -88,6 +115,49 @@ export default function PaymentsPage() {
             </h2>
           </div>
           <TransactionList />
+        </section>
+      )}
+
+      {/* Withdrawal flow explainer — visible whenever the customer has an account */}
+      {virtualAccount && (
+        <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <ArrowUpFromLine className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Withdrawing your balance</h2>
+            <span className="ml-auto inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+              Live only
+            </span>
+          </div>
+
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Any balance left in your wallet after hiring workers can be withdrawn to your personal bank account at any time. Here's how it works in production:
+          </p>
+
+          <ol className="space-y-3">
+            {[
+              {
+                icon: <Landmark className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />,
+                text: "Link your Nigerian bank account — we verify the account name via the NIP network before saving it.",
+              },
+              {
+                icon: <ArrowUpFromLine className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />,
+                text: "Request a withdrawal for any amount up to your current balance. We send it directly from Artivo's Squad merchant wallet to your bank.",
+              },
+              {
+                icon: <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />,
+                text: "Funds arrive in your account within minutes via NIP. Your Artivo balance updates instantly.",
+              },
+            ].map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                {step.icon}
+                <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
+              </li>
+            ))}
+          </ol>
+
+          <p className="text-xs text-muted-foreground border-t border-gray-200 pt-3">
+            Withdrawals are disabled in sandbox mode because Squad's transfer API only processes real bank accounts. All other wallet features work normally.
+          </p>
         </section>
       )}
     </div>
