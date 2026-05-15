@@ -7,7 +7,7 @@ export interface BackendFeedWorker {
   bio: string;
   skills: string[];
   location: string;
-  share_slug: string;
+  share_slug?: string | null;
   credit_score: number;
   completion_rate: number;
   total_jobs: number;

@@ -91,7 +91,10 @@ export default function CustomerOnboardingPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -100,14 +103,12 @@ export default function CustomerOnboardingPage() {
       };
 
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64 = reader.result as string;
-          await submitVoice(base64);
-        };
-        reader.readAsDataURL(blob);
         stream.getTracks().forEach((track) => track.stop());
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const formData = new FormData();
+        formData.append("audio", blob, "recording.webm");
+        formData.append("userType", "customer");
+        await submitVoice(formData);
       };
 
       mediaRecorder.start();

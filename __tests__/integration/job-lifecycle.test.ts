@@ -176,7 +176,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
 
       const hireResult = await useHireFlowStore
         .getState()
-        .hireWorker("jr-001", "worker-1", 15000);
+        .hireWorker("jr-001", "worker-1", 15000, "online");
 
       expect(hireResult).toBe(true);
       const hireStateAfterHire = useHireFlowStore.getState();
@@ -283,7 +283,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
         }),
       });
 
-      await useHireFlowStore.getState().hireWorker("jr-100", "worker-2", 8000);
+      await useHireFlowStore.getState().hireWorker("jr-100", "worker-2", 8000, "online");
 
       // Hire deducts wallet balance and funds escrow immediately
       expect(useHireFlowStore.getState().step).toBe("complete");
@@ -333,7 +333,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
         json: async () => ({ msg: "Worker unavailable" }),
       });
 
-      await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000);
+      await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000, "online");
 
       expect(useHireFlowStore.getState().step).toBe("hiring");
       expect(useHireFlowStore.getState().error).toBe("Worker unavailable");
@@ -347,7 +347,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
           escrow: { status: "funded" },
         }),
       });
-      await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000);
+      await useHireFlowStore.getState().hireWorker("jr-200", "worker-1", 5000, "online");
       expect(useHireFlowStore.getState().step).toBe("complete");
     });
   });
@@ -500,7 +500,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
 
       const firstAttempt = await useHireFlowStore
         .getState()
-        .hireWorker("jr-300", "worker-1", 10000);
+        .hireWorker("jr-300", "worker-1", 10000, "online");
 
       expect(firstAttempt).toBe(false);
       expect(useHireFlowStore.getState().step).toBe("hiring");
@@ -521,7 +521,7 @@ describe("Integration: Discovery → Hire → Pay → Complete → Rate", () => 
 
       const retryAttempt = await useHireFlowStore
         .getState()
-        .hireWorker("jr-300", "worker-1", 10000);
+        .hireWorker("jr-300", "worker-1", 10000, "online");
 
       expect(retryAttempt).toBe(true);
       expect(useHireFlowStore.getState().step).toBe("paying");

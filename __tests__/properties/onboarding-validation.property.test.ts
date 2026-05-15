@@ -917,7 +917,7 @@ describe("Feature: marketplace-integration, Property 7: Voice onboard response f
         mockedApiService.post.mockResolvedValueOnce(mockResponse);
 
         // Call submitVoice with arbitrary audio data
-        await useOnboardingStore.getState().submitVoice("base64audiodata");
+        await useOnboardingStore.getState().submitVoice(new FormData());
 
         const state = useOnboardingStore.getState();
 

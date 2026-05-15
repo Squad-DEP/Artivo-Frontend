@@ -61,7 +61,10 @@ export default function CreateJobPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -70,13 +73,10 @@ export default function CreateJobPage() {
 
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64 = (reader.result as string).split(",")[1];
-          await submitVoice(base64);
-        };
-        reader.readAsDataURL(blob);
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const formData = new FormData();
+        formData.append("audio", blob, "recording.webm");
+        await submitVoice(formData);
       };
 
       recorder.start();

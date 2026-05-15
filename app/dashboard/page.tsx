@@ -431,7 +431,7 @@ function WorkerDashboard({ userName }: { userName: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
+          className="bg-white rounded-2xl border border-gray-200 p-6"
         >
           <h3 className="font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">

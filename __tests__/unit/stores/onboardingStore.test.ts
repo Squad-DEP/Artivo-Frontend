@@ -353,7 +353,7 @@ describe("onboardingStore", () => {
         },
       });
 
-      await useOnboardingStore.getState().submitVoice("base64AudioData");
+      await useOnboardingStore.getState().submitVoice(new FormData());
       const state = useOnboardingStore.getState();
 
       expect(mockedApiService.post).toHaveBeenCalledWith("/ai/onboard/voice", {
@@ -375,7 +375,7 @@ describe("onboardingStore", () => {
     it("should set error state on voice endpoint failure", async () => {
       mockedApiService.post.mockRejectedValueOnce(new Error("Voice processing failed"));
 
-      await useOnboardingStore.getState().submitVoice("base64AudioData");
+      await useOnboardingStore.getState().submitVoice(new FormData());
       const state = useOnboardingStore.getState();
 
       expect(state.error).toBe("Voice processing failed");

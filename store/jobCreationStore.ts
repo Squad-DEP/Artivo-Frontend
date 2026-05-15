@@ -33,7 +33,7 @@ export interface JobCreationState {
   // Actions
   initJobCreation: () => void;
   submitText: (text: string) => Promise<void>;
-  submitVoice: (audioData: string) => Promise<void>;
+  submitVoice: (formData: FormData) => Promise<void>;
   updateField: (field: keyof JobExtractionData, value: string | number) => void;
   confirmAndCreate: () => Promise<boolean>;
   reset: () => void;
@@ -126,7 +126,7 @@ export const useJobCreationStore = create<JobCreationState>((set, get) => ({
     }
   },
 
-  submitVoice: async (audioData: string) => {
+  submitVoice: async (formData: FormData) => {
     const userMessage = createMessage("user", "🎤 Voice message");
     set((state) => ({
       messages: [...state.messages, userMessage],
@@ -137,9 +137,7 @@ export const useJobCreationStore = create<JobCreationState>((set, get) => ({
     try {
       const response = await apiService.post<{ success: boolean; data: JobExtractionData }>(
         "/ai/extract-job/voice",
-        {
-          body: { audioData },
-        }
+        { body: formData }
       );
 
       if (response.success && response.data) {

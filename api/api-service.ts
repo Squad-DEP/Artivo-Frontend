@@ -2,7 +2,7 @@ import { useAuthStore } from "@/store/authStore";
 
 type RequestOptions = {
   params?: Record<string, string | number>;
-  body?: object;
+  body?: object | FormData;
   headers?: Record<string, string>;
   query?: Record<string, string>;
 };
@@ -63,13 +63,17 @@ class ApiService {
     options?: RequestOptions
   ): Promise<T> {
     const url = this.formatUrl(path, options);
-    let headers = { ...this.getHeaders(), ...options?.headers };
+    const isFormData = options?.body instanceof FormData;
+    // For FormData, omit Content-Type so the browser sets it with the multipart boundary
+    const baseHeaders = isFormData
+      ? { Authorization: `Bearer ${useAuthStore.getState().user?.access_token}` }
+      : { ...this.getHeaders() };
+    let headers = { ...baseHeaders, ...options?.headers };
+    const body = options?.body
+      ? isFormData ? options.body as FormData : JSON.stringify(options.body)
+      : undefined;
 
-    let response = await fetch(url, {
-      method,
-      headers,
-      body: options?.body ? JSON.stringify(options.body) : undefined,
-    });
+    let response = await fetch(url, { method, headers, body });
 
     // Handle 401 Unauthorized - token refresh
     if (response.status === 401) {
@@ -84,7 +88,7 @@ class ApiService {
               ...this.getHeaders(),
               ...options?.headers,
             },
-            body: options?.body ? JSON.stringify(options.body) : undefined,
+            body,
           });
           return await retryResponse.json();
         } else {

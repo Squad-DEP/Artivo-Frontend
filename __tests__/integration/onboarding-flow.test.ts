@@ -430,7 +430,7 @@ describe("Integration: Onboarding Flow", () => {
       mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
 
       const base64Audio = "SGVsbG8gV29ybGQ="; // base64 encoded audio
-      await useOnboardingStore.getState().submitVoice(base64Audio);
+      await useOnboardingStore.getState().submitVoice(new FormData());
 
       // Verify API was called with correct payload
       expect(mockedApiService.post).toHaveBeenCalledWith("/ai/onboard/voice", {
@@ -460,7 +460,7 @@ describe("Integration: Onboarding Flow", () => {
 
       // First, populate fields via voice
       mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
-      await useOnboardingStore.getState().submitVoice("base64audio");
+      await useOnboardingStore.getState().submitVoice(new FormData());
 
       // Clear mock call history to verify no API call on correction
       vi.clearAllMocks();
@@ -491,7 +491,7 @@ describe("Integration: Onboarding Flow", () => {
 
       // Populate fields via voice
       mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
-      await useOnboardingStore.getState().submitVoice("base64audio");
+      await useOnboardingStore.getState().submitVoice(new FormData());
 
       // Correct a field before saving
       useOnboardingStore.getState().correctField("avgPay", "20000");
@@ -530,7 +530,7 @@ describe("Integration: Onboarding Flow", () => {
       // Voice endpoint fails
       mockedApiService.post.mockRejectedValueOnce(new Error("Voice processing failed. Please try text input."));
 
-      await useOnboardingStore.getState().submitVoice("base64audio");
+      await useOnboardingStore.getState().submitVoice(new FormData());
 
       // Verify error state after voice failure
       let state = useOnboardingStore.getState();
@@ -587,7 +587,7 @@ describe("Integration: Onboarding Flow", () => {
 
       // Populate fields via voice
       mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
-      await useOnboardingStore.getState().submitVoice("base64audio");
+      await useOnboardingStore.getState().submitVoice(new FormData());
 
       // Mock POST /user failure
       mockedApiService.post.mockRejectedValueOnce(new Error("Failed to save profile. Please try again."));
@@ -612,7 +612,7 @@ describe("Integration: Onboarding Flow", () => {
 
       // Populate fields via voice
       mockedApiService.post.mockResolvedValueOnce(mockVoiceResponse);
-      await useOnboardingStore.getState().submitVoice("base64audio");
+      await useOnboardingStore.getState().submitVoice(new FormData());
 
       // Correct multiple fields
       useOnboardingStore.getState().correctField("fullName", "Adebayo O.");

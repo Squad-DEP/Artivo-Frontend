@@ -248,7 +248,7 @@ describe("hireFlowStore", () => {
 
       const result = await useHireFlowStore
         .getState()
-        .hireWorker("jr-001", "worker-123", 15000);
+        .hireWorker("jr-001", "worker-123", 15000, "online");
 
       expect(result).toBe(true);
       const state = useHireFlowStore.getState();
@@ -267,7 +267,7 @@ describe("hireFlowStore", () => {
 
       const result = await useHireFlowStore
         .getState()
-        .hireWorker("jr-001", "worker-123", 15000);
+        .hireWorker("jr-001", "worker-123", 15000, "online");
 
       expect(result).toBe(false);
       const state = useHireFlowStore.getState();
@@ -282,7 +282,7 @@ describe("hireFlowStore", () => {
 
       const result = await useHireFlowStore
         .getState()
-        .hireWorker("jr-001", "worker-123", 15000);
+        .hireWorker("jr-001", "worker-123", 15000, "online");
 
       expect(result).toBe(false);
       const state = useHireFlowStore.getState();
@@ -302,7 +302,7 @@ describe("hireFlowStore", () => {
 
       await useHireFlowStore
         .getState()
-        .hireWorker("jr-001", "worker-456", 20000);
+        .hireWorker("jr-001", "worker-456", 20000, "online");
 
       expect(mockFetch).toHaveBeenCalledWith(
         "http://localhost:8080/api/v1/customer/hire",
@@ -326,7 +326,7 @@ describe("hireFlowStore", () => {
 
       const result = await useHireFlowStore
         .getState()
-        .hireWorker("jr-001", "worker-123", 15000);
+        .hireWorker("jr-001", "worker-123", 15000, "online");
 
       expect(result).toBe(false);
       const state = useHireFlowStore.getState();
