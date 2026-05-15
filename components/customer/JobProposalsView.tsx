@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Plus, Sparkles, Star } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Plus, Sparkles, Star, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/api/api-service";
@@ -24,6 +24,7 @@ interface Proposal {
   worker_id: string;
   worker_name: string;
   photo_url: string | null;
+  share_slug: string | null;
   proposed_amount: number;
   proposed_amount_max: number | null;
   status: string;
@@ -33,6 +34,7 @@ interface Proposal {
 interface AiMatch {
   worker_id: string;
   worker_name: string;
+  share_slug: string | null;
   match_score: number;
   explanation: string;
   score_breakdown: {
@@ -60,6 +62,8 @@ export function JobProposalsView() {
   const [error, setError] = useState<string | null>(null);
   const [aiMatches, setAiMatches] = useState<AiMatch[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
+  // Cache AI results by job ID so reopening a job doesn't refetch
+  const aiCache = useRef<Map<string, AiMatch[]>>(new Map());
 
   const fetchJobRequests = useCallback(async () => {
     setIsLoadingJobs(true);
@@ -77,31 +81,37 @@ export function JobProposalsView() {
     fetchJobRequests();
   }, [fetchJobRequests]);
 
-  async function openProposals(job: JobRequest) {
+  function openProposals(job: JobRequest) {
     setSelectedJob(job);
-    setIsLoadingProposals(true);
-    setIsLoadingMatches(true);
     setProposals([]);
-    setAiMatches([]);
+    setError(null);
 
-    // Fetch proposals and AI matches in parallel
-    const [proposalResult, matchResult] = await Promise.allSettled([
-      apiService.get<{ proposals: Proposal[] }>(`/customer/job-requests/${job.id}/proposals`),
-      apiService.get<{ matches: AiMatch[] }>(`/jobs/${job.id}/matches?limit=5`),
-    ]);
+    // ── Proposals: fetch independently, show as soon as ready ──
+    setIsLoadingProposals(true);
+    apiService
+      .get<{ proposals: Proposal[] }>(`/customer/job-requests/${job.id}/proposals`)
+      .then((data) => setProposals(data.proposals ?? []))
+      .catch(() => setError("Failed to load proposals."))
+      .finally(() => setIsLoadingProposals(false));
 
-    if (proposalResult.status === "fulfilled") {
-      setProposals(proposalResult.value.proposals ?? []);
+    // ── AI matches: serve from cache instantly, fetch only on first open ──
+    const cached = aiCache.current.get(job.id);
+    if (cached) {
+      setAiMatches(cached);
+      setIsLoadingMatches(false);
     } else {
-      setError("Failed to load proposals.");
+      setAiMatches([]);
+      setIsLoadingMatches(true);
+      apiService
+        .get<{ matches: AiMatch[] }>(`/jobs/${job.id}/matches?limit=5`)
+        .then((data) => {
+          const matches = data.matches ?? [];
+          aiCache.current.set(job.id, matches);
+          setAiMatches(matches);
+        })
+        .catch(() => { /* silent — AI suggestions are non-critical */ })
+        .finally(() => setIsLoadingMatches(false));
     }
-
-    if (matchResult.status === "fulfilled") {
-      setAiMatches(matchResult.value.matches ?? []);
-    }
-
-    setIsLoadingProposals(false);
-    setIsLoadingMatches(false);
   }
 
   function initiateHire(proposal: Proposal) {
@@ -164,23 +174,32 @@ export function JobProposalsView() {
           {!isLoadingMatches && aiMatches.length > 0 && (
             <div className="space-y-2">
               {aiMatches.map((match, i) => (
-                <div key={match.worker_id} className="rounded-xl border border-gray-200 bg-white p-3.5 flex items-start gap-3">
+                <div key={match.worker_id} className="rounded-xl border border-gray-200 bg-white p-3.5 flex gap-3">
                   {/* Rank badge */}
-                  <div className="shrink-0 w-7 h-7 rounded-full bg-[var(--orange)]/10 flex items-center justify-center">
+                  <div className="shrink-0 w-7 h-7 rounded-full bg-[var(--orange)]/10 flex items-center justify-center mt-0.5">
                     <span className="text-xs font-bold text-[var(--orange)]">#{i + 1}</span>
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-sm text-foreground truncate">{match.worker_name}</p>
-                      <span className="shrink-0 flex items-center gap-0.5 text-xs font-semibold text-amber-600">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="font-medium text-sm text-foreground">{match.worker_name}</p>
+                      <span className="flex items-center gap-0.5 text-xs font-semibold text-amber-600">
                         <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                         {match.match_score}/100
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {match.explanation}
                     </p>
+                    {match.share_slug && (
+                      <button
+                        onClick={() => router.push(`/artisan/${match.share_slug}`)}
+                        className="mt-2.5 flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        View Profile
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -226,7 +245,18 @@ export function JobProposalsView() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">{proposal.worker_name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm text-foreground truncate">{proposal.worker_name}</p>
+                    {proposal.share_slug && (
+                      <button
+                        onClick={() => router.push(`/artisan/${proposal.share_slug}`)}
+                        className="shrink-0 flex items-center gap-0.5 text-xs text-primary hover:underline"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Profile
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-sm font-semibold text-primary">
                       {formatAmount(proposal.proposed_amount)}
