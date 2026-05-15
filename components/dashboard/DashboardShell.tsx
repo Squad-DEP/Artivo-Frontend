@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect, ReactElement } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode } from "react";
@@ -99,9 +100,7 @@ export function DashboardShell({ children, noPaddding }: { children: ReactNode, 
         <aside className="fixed top-0 left-0 hidden md:flex flex-col h-full w-64 bg-white border-r border-[var(--sidebar-border)] px-4 py-6">
           <div className="flex justify-between items-center">
             <Link href="/dashboard" className="w-max flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[var(--orange)] flex items-center justify-center">
-                <span className="text-white font-bold text-xl">A</span>
-              </div>
+              <Image src="/logo_primary.svg" alt={BRAND.name} width={40} height={40} />
               <span className="text-2xl font-bold text-[var(--sidebar-foreground)]">{BRAND.name}</span>
             </Link>
             <div className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600 w-max capitalize">
@@ -173,9 +172,7 @@ export function DashboardShell({ children, noPaddding }: { children: ReactNode, 
               {isSidebarOpen ? <X /> : <Menu />}
             </button>
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--orange)] flex items-center justify-center">
-                <span className="text-white font-bold text-sm">A</span>
-              </div>
+              <Image src="/logo_primary.svg" alt={BRAND.name} width={32} height={32} />
               <span className="text-lg font-bold text-[var(--sidebar-foreground)]">{BRAND.name}</span>
             </Link>
           </div>

@@ -170,7 +170,7 @@ export default function AuthCallback() {
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md text-center">
         <div className="flex justify-center mb-6">
           <Image
-            src="/icons/auth/logo_primary.svg"
+            src="/logo_primary.svg"
             alt="Artivo"
             width={64}
             height={64}

@@ -240,16 +240,16 @@ export function VirtualAccountSetup() {
 
             <div className="space-y-1.5">
               <Label>Gender</Label>
-              <div className="flex gap-2 h-9">
+              <div className="flex gap-2 h-14">
                 {(["1", "2"] as const).map((val) => (
                   <button
                     key={val}
                     type="button"
                     onClick={() => set("gender", val)}
                     disabled={isLoading}
-                    className={`flex-1 rounded-md border text-xs font-medium transition-colors ${
+                    className={`flex-1 text-xs font-medium transition-colors rounded-[12px] sm:rounded-[19px] border border-[#E4E4E4] bg-[#FBFBFB] ${
                       form.gender === val
-                        ? "border-primary bg-primary/5 text-primary"
+                        ? "border-primary bg-primary/5 text-primary font-bold"
                         : "border-border text-muted-foreground hover:border-primary/40"
                     }`}
                   >

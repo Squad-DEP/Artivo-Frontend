@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import Image from "next/image";
 import { BRAND } from "@/lib/constants";
 
 interface OnboardingLayoutProps {
@@ -18,7 +19,7 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
         {/* Foreground */}
         <div className="z-10 flex flex-col items-start space-y-6">
           <div className="w-24 h-24 2xl:w-32 2xl:h-32 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-            <span className="text-white font-bold text-5xl 2xl:text-6xl">A</span>
+            <Image src="/logo_primary.svg" alt={BRAND.name} width={96} height={96} className="2xl:w-[128px] 2xl:h-[128px]" />
           </div>
           <h1 className="font-semibold leading-none tracking-tight 2xl:text-[90px] text-6xl">
             {BRAND.name}
@@ -35,9 +36,7 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
 
       <div className="w-full flex-1 flex-col lg:w-7/12 xl:w-1/2 py-8 sm:py-14 px-6 sm:px-12 bg-white overflow-y-scroll">
         <div className="flex items-center space-x-3 flex-1 mb-16 sm:mb-28">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[var(--orange)] flex items-center justify-center">
-            <span className="text-white font-bold text-2xl sm:text-3xl">A</span>
-          </div>
+          <Image src="/logo_primary.svg" alt={BRAND.name} width={48} height={48} className="sm:w-14 sm:h-14" />
           <span className="text-[#444] text-3xl sm:text-4xl font-semibold tracking-[-0.03em]">
             {BRAND.name}
           </span>

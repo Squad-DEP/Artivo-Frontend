@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { BRAND } from "@/lib/constants";
 import Link from "next/link";
+import Image from "next/image";
 import type { WorkerProfile, PortfolioItem } from "@/api/types/worker";
 import type { Review } from "@/api/types/reputation";
 import { VERIFICATION_STATUS } from "@/lib/constants/user-types";
@@ -248,9 +249,7 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
               <span className="hidden sm:inline text-sm font-medium">Back</span>
             </button>
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--orange)] flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-sm">A</span>
-              </div>
+              <Image src="/logo_primary.svg" alt={BRAND.name} width={32} height={32} />
               <span className="text-lg font-semibold text-gray-900">{BRAND.name}</span>
             </Link>
             <ProfileShareButton username={worker.username ?? ""} workerName={worker.display_name} />

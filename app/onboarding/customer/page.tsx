@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   ArrowRight,
   ArrowLeft,
@@ -212,9 +213,7 @@ export default function CustomerOnboardingPage() {
         {/* Top bar with logo */}
         <div className="flex items-center px-6 sm:px-10 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-[var(--orange)] flex items-center justify-center">
-              <span className="text-white font-bold text-lg">A</span>
-            </div>
+            <Image src="/logo_primary.svg" alt="Artivo" width={36} height={36} />
             <span className="text-foreground text-xl font-semibold tracking-tight">Artivo</span>
           </div>
         </div>

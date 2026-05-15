@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight, ArrowLeft, MapPin, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -105,9 +106,7 @@ export default function WorkerProfilePage() {
       <header className="p-6 sm:p-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-[var(--orange)] flex items-center justify-center">
-              <span className="text-white font-bold text-xl">A</span>
-            </div>
+            <Image src="/logo_primary.svg" alt={BRAND.name} width={40} height={40} />
             <span className="text-2xl font-semibold text-[#444] tracking-tight">
               {BRAND.name}
             </span>

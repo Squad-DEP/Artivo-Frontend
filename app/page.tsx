@@ -575,9 +575,7 @@ const Header = () => {
   return (
     <header className="pt-6 sm:pt-12 pb-8 px-4 sm:px-8 md:px-14 xl:px-20 flex justify-between items-center w-full font-medium">
       <div className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-lg bg-[var(--orange)] flex items-center justify-center">
-          <span className="text-white font-bold text-lg">A</span>
-        </div>
+        <Image src="/logo_primary.svg" alt={BRAND.name} width={36} height={36} />
         <h1 className="max-sm:hidden text-[28px] tracking-[-1.5px] leading-[123%] text-[#444444] font-semibold">
           {BRAND.name}
         </h1>
@@ -637,9 +635,7 @@ const Footer = () => {
     <footer className="relative min-h-[500px] pt-20 sm:pt-[120px] pb-8 px-6 sm:px-8 md:px-14 xl:px-20 w-full bg-[#1D1D1D] text-white">
       <div className="pb-16 sm:pb-[100px] flex max-md:flex-col md:items-start max-lg:justify-between gap-y-12 lg:gap-[200px]">
         <div className="flex items-center gap-4 sm:gap-6">
-          <div className="w-16 h-16 rounded-xl bg-[var(--orange)] flex items-center justify-center">
-            <span className="text-white font-bold text-3xl">A</span>
-          </div>
+          <Image src="/logo_primary.svg" alt={BRAND.name} width={64} height={64} />
           <div className="max-w-[257px] space-y-2 text-white">
             <p className="text-3xl sm:text-4xl font-semibold leading-[86.5%] tracking-[-2px]">
               {BRAND.name}

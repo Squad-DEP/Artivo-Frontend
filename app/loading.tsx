@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center z-50">
       <Image
-        src="/icons/auth/logo_primary.svg"
+        src="/logo_primary.svg"
         alt="Artivo icon"
         width={47}
         height={47}
