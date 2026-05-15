@@ -166,9 +166,11 @@ export default function JobCreationChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isProcessing, extractedJob]);
 
-  // Focus input when processing completes
+  // Clear input and refocus once AI has successfully extracted the job
   useEffect(() => {
-    if (!isProcessing && !isEditing) {
+    if (isEditing) {
+      setInput("");
+    } else if (!isProcessing) {
       inputRef.current?.focus();
     }
   }, [isProcessing, isEditing]);
@@ -178,7 +180,6 @@ export default function JobCreationChat() {
     const trimmed = input.trim();
     if (!trimmed || isProcessing || isEditing) return;
 
-    setInput("");
     await submitText(trimmed);
   };
 
