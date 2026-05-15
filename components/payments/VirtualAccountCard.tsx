@@ -115,13 +115,10 @@ export function VirtualAccountCard({ variant = "wallet" }: VirtualAccountCardPro
 
         <div className="mb-6">
           <p className="text-3xl font-bold tracking-tight">
-            {formatNGN(virtualAccount.balance)}
+            {formatNGN(isPayoutVariant ? virtualAccount.balance : virtualAccount.total_deposited)}
           </p>
           <p className="text-xs mt-1 opacity-70">
-            {isPayoutVariant
-              ? "Earnings received so far"
-              : `${formatNGN(virtualAccount.total_deposited)} total deposited`
-            }
+            {isPayoutVariant ? "Earnings received so far" : "Total deposited"}
           </p>
         </div>
 

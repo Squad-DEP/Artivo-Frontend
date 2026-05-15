@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Plus } from "lucide-react";
+import { User, MapPin, Banknote, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, Plus, Sparkles, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { apiService } from "@/api/api-service";
@@ -30,6 +30,19 @@ interface Proposal {
   created_at: string;
 }
 
+interface AiMatch {
+  worker_id: string;
+  worker_name: string;
+  match_score: number;
+  explanation: string;
+  score_breakdown: {
+    skills_match: number;
+    location_match: number;
+    reputation: number;
+    ai_semantic: number;
+  };
+}
+
 const formatBudget = (v: number | null | undefined) =>
   !v || v === 0 ? "Negotiable" : `₦${Number(v).toLocaleString("en-NG")}`;
 const formatAmount = (v: number) => `₦${Number(v).toLocaleString("en-NG")}`;
@@ -45,6 +58,8 @@ export function JobProposalsView() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [hiredProposalIds, setHiredProposalIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [aiMatches, setAiMatches] = useState<AiMatch[]>([]);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(false);
 
   const fetchJobRequests = useCallback(async () => {
     setIsLoadingJobs(true);
@@ -65,15 +80,28 @@ export function JobProposalsView() {
   async function openProposals(job: JobRequest) {
     setSelectedJob(job);
     setIsLoadingProposals(true);
+    setIsLoadingMatches(true);
     setProposals([]);
-    try {
-      const data = await apiService.get<{ proposals: Proposal[] }>(`/customer/job-requests/${job.id}/proposals`);
-      setProposals(data.proposals ?? []);
-    } catch {
+    setAiMatches([]);
+
+    // Fetch proposals and AI matches in parallel
+    const [proposalResult, matchResult] = await Promise.allSettled([
+      apiService.get<{ proposals: Proposal[] }>(`/customer/job-requests/${job.id}/proposals`),
+      apiService.get<{ matches: AiMatch[] }>(`/jobs/${job.id}/matches?limit=5`),
+    ]);
+
+    if (proposalResult.status === "fulfilled") {
+      setProposals(proposalResult.value.proposals ?? []);
+    } else {
       setError("Failed to load proposals.");
-    } finally {
-      setIsLoadingProposals(false);
     }
+
+    if (matchResult.status === "fulfilled") {
+      setAiMatches(matchResult.value.matches ?? []);
+    }
+
+    setIsLoadingProposals(false);
+    setIsLoadingMatches(false);
   }
 
   function initiateHire(proposal: Proposal) {
@@ -95,7 +123,7 @@ export function JobProposalsView() {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => { setSelectedJob(null); setProposals([]); setError(null); }}
+          onClick={() => { setSelectedJob(null); setProposals([]); setAiMatches([]); setError(null); }}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -112,6 +140,52 @@ export function JobProposalsView() {
             {selectedJob.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{selectedJob.location}</span>}
             <span className="flex items-center gap-1"><Banknote className="w-3.5 h-3.5" />Budget: {formatBudget(selectedJob.budget)}</span>
           </div>
+        </div>
+
+        {/* AI Matches */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--orange)]" />
+            <h4 className="font-semibold text-sm text-foreground">AI-Suggested Artisans</h4>
+          </div>
+
+          {isLoadingMatches && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Finding best matches…
+            </div>
+          )}
+
+          {!isLoadingMatches && aiMatches.length === 0 && (
+            <p className="text-xs text-muted-foreground py-1">
+              No subscribed artisans found for this job type yet.
+            </p>
+          )}
+
+          {!isLoadingMatches && aiMatches.length > 0 && (
+            <div className="space-y-2">
+              {aiMatches.map((match, i) => (
+                <div key={match.worker_id} className="rounded-xl border border-gray-200 bg-white p-3.5 flex items-start gap-3">
+                  {/* Rank badge */}
+                  <div className="shrink-0 w-7 h-7 rounded-full bg-[var(--orange)]/10 flex items-center justify-center">
+                    <span className="text-xs font-bold text-[var(--orange)]">#{i + 1}</span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-sm text-foreground truncate">{match.worker_name}</p>
+                      <span className="shrink-0 flex items-center gap-0.5 text-xs font-semibold text-amber-600">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        {match.match_score}/100
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                      {match.explanation}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <h4 className="font-semibold text-sm text-foreground">

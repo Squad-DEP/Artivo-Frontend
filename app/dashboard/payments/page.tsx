@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, Building2, ArrowUpFromLine, Landmark, CheckCircle2, Banknote } from "lucide-react";
+import { TrendingUp, Building2, ArrowUpFromLine, Landmark, CheckCircle2, Banknote, ShieldCheck } from "lucide-react";
 import { VirtualAccountCard, ClaimVirtualAccountCard } from "@/components/payments/VirtualAccountCard";
 import { VirtualAccountSetup } from "@/components/payments/VirtualAccountSetup";
 import { TransactionList } from "@/components/payments/TransactionList";
@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useEffect, useRef } from "react";
 
 export default function PaymentsPage() {
-  const { needsSetup, virtualAccount, isLoading, fetchVirtualAccount } = usePaymentStore();
+  const { needsSetup, virtualAccount, escrows, isLoading, fetchVirtualAccount, fetchEscrows } = usePaymentStore();
   const user = useAuthStore((state) => state.user);
   const isWorker = user?.user_type === "worker";
   const fetched = useRef(false);
@@ -19,6 +19,7 @@ export default function PaymentsPage() {
     if (!fetched.current) {
       fetched.current = true;
       fetchVirtualAccount();
+      if (!isWorker) fetchEscrows();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -105,6 +106,28 @@ export default function PaymentsPage() {
         }
         {needsSetup && !virtualAccount && !isLoading && <ClaimVirtualAccountCard />}
       </section>
+
+      {virtualAccount && escrows.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Active Escrows</h2>
+          </div>
+          <div className="space-y-2">
+            {escrows.map((escrow) => (
+              <div key={escrow.id} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{escrow.title}</p>
+                  <p className="text-xs text-muted-foreground capitalize mt-0.5">{escrow.status}</p>
+                </div>
+                <p className="text-sm font-semibold text-foreground">
+                  {new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2 }).format(escrow.amount)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {virtualAccount && (
         <section>

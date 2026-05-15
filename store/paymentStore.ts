@@ -37,9 +37,19 @@ export interface SquadTransaction {
   };
 }
 
+export interface CustomerEscrow {
+  id: string;
+  jobId: string;
+  amount: number;
+  status: string;
+  fundedAt: string | null;
+  title: string;
+}
+
 interface PaymentState {
   virtualAccount: VirtualAccount | null;
   transactions: SquadTransaction[];
+  escrows: CustomerEscrow[];
   isLoading: boolean;
   error: string | null;
   virtualAccountError: string | null;
@@ -50,6 +60,7 @@ interface PaymentState {
   claimAccount: (accountNumber: string) => Promise<void>;
   simulateDeposit: (amount: number) => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  fetchEscrows: () => Promise<void>;
   clearError: () => void;
   clearVirtualAccountError: () => void;
 }
@@ -59,6 +70,7 @@ interface PaymentState {
 export const usePaymentStore = create<PaymentState>()((set) => ({
   virtualAccount: null,
   transactions: [],
+  escrows: [],
   isLoading: false,
   error: null,
   virtualAccountError: null,
@@ -200,6 +212,15 @@ export const usePaymentStore = create<PaymentState>()((set) => ({
             : "Failed to fetch transactions",
         isLoading: false,
       });
+    }
+  },
+
+  fetchEscrows: async () => {
+    try {
+      const data = await apiService.get<{ escrows: CustomerEscrow[] }>("/account/escrows");
+      set({ escrows: data.escrows ?? [] });
+    } catch {
+      // non-critical, leave existing state
     }
   },
 
