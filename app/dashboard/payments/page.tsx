@@ -7,16 +7,21 @@ import { TransactionList } from "@/components/payments/TransactionList";
 import { WorkerEarningsSection } from "@/components/payments/WorkerEarningsSection";
 import { usePaymentStore } from "@/store/paymentStore";
 import { useAuthStore } from "@/store/authStore";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export default function PaymentsPage() {
-  const { needsSetup, virtualAccount, fetchVirtualAccount } = usePaymentStore();
+  const { needsSetup, virtualAccount, isLoading, fetchVirtualAccount } = usePaymentStore();
   const user = useAuthStore((state) => state.user);
   const isWorker = user?.user_type === "worker";
+  const fetched = useRef(false);
 
   useEffect(() => {
-    fetchVirtualAccount();
-  }, [fetchVirtualAccount]);
+    if (!fetched.current) {
+      fetched.current = true;
+      fetchVirtualAccount();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isWorker) {
     return (
@@ -35,8 +40,14 @@ export default function PaymentsPage() {
             Payout Account
           </h2>
 
-          {/* Virtual account — setup or display */}
-          {virtualAccount ? <VirtualAccountCard /> : <VirtualAccountSetup />}
+          {/* Skeleton while loading, then virtual account or setup */}
+          {isLoading ? (
+            <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
+          ) : virtualAccount ? (
+            <VirtualAccountCard />
+          ) : (
+            <VirtualAccountSetup />
+          )}
 
           {/* External bank account — coming soon */}
           <div className="flex items-center gap-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
@@ -61,8 +72,11 @@ export default function PaymentsPage() {
       </div>
 
       <section className="space-y-4">
-        <VirtualAccountCard />
-        {needsSetup && !virtualAccount && <ClaimVirtualAccountCard />}
+        {isLoading && !virtualAccount
+          ? <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
+          : <VirtualAccountCard />
+        }
+        {needsSetup && !virtualAccount && !isLoading && <ClaimVirtualAccountCard />}
       </section>
 
       {virtualAccount && (

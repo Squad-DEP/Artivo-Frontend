@@ -73,7 +73,7 @@ const PAYOUT_CONFIG: Record<
     cls: "bg-red-50 text-red-600 border-red-200",
   },
   not_initiated: {
-    label: "Awaiting bank account",
+    label: "Payout pending",
     icon: <AlertTriangle className="w-3.5 h-3.5" />,
     cls: "bg-orange-50 text-orange-700 border-orange-200",
   },
@@ -224,7 +224,7 @@ export function WorkerEarningsSection() {
 
       {/* Per-job payout list */}
       <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <h3 className="font-semibold text-muted-foreground uppercase tracking-wide">
           Payout history
         </h3>
         {payouts.map((p) => {
@@ -292,19 +292,16 @@ export function WorkerEarningsSection() {
                         <p className="text-xs text-muted-foreground">{msg}</p>
                       ) : (
                         <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex items-center gap-1.5 text-xs"
+                          className="w-full h-11 text-sm bg-[var(--orange,#f97316)] hover:bg-[var(--orange,#f97316)]/90 text-white gap-2"
                           onClick={() => handleRetryPayout(p.job_id)}
                           disabled={retrying === p.job_id}
                         >
                           {retrying === p.job_id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <RefreshCw className="w-3.5 h-3.5" />
+                            <RefreshCw className="w-4 h-4" />
                           )}
-                          Retry payout
-                          <ArrowRight className="w-3 h-3 ml-0.5" />
+                          Collect Funds
                         </Button>
                       )}
                     </div>

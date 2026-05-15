@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Building2,
   Copy,
@@ -14,7 +14,6 @@ import {
 import { usePaymentStore } from "@/store/paymentStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { VirtualAccountSetup } from "@/components/payments/VirtualAccountSetup";
 import { cn } from "@/lib/utils";
 
 function formatNGN(amount: number): string {
@@ -27,7 +26,7 @@ function formatNGN(amount: number): string {
 }
 
 export function VirtualAccountCard() {
-  const { virtualAccount, isLoading, error, needsSetup, fetchVirtualAccount, simulateDeposit, claimAccount } =
+  const { virtualAccount, isLoading, error, fetchVirtualAccount, simulateDeposit, claimAccount } =
     usePaymentStore();
   const [copied, setCopied] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
@@ -50,10 +49,6 @@ export function VirtualAccountCard() {
     setShowClaimInput(false);
   };
 
-  useEffect(() => {
-    fetchVirtualAccount();
-  }, [fetchVirtualAccount]);
-
   const handleCopy = async () => {
     if (!virtualAccount?.account_number) return;
     try {
@@ -64,23 +59,6 @@ export function VirtualAccountCard() {
       // clipboard not available
     }
   };
-
-  if (isLoading && !virtualAccount) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="flex items-center gap-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-          <span className="text-sm text-muted-foreground">
-            Loading account details...
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (needsSetup) {
-    return <VirtualAccountSetup />;
-  }
 
   if (!virtualAccount && error) {
     return (
