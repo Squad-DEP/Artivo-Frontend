@@ -44,7 +44,7 @@ export default function PaymentsPage() {
           {isLoading ? (
             <div className="h-32 rounded-xl bg-gray-100 animate-pulse" />
           ) : virtualAccount ? (
-            <VirtualAccountCard />
+            <VirtualAccountCard variant="payout" />
           ) : (
             <VirtualAccountSetup />
           )}
