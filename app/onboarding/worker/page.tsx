@@ -129,12 +129,14 @@ export default function WorkerOnboardingPage() {
       };
 
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", blob, "recording.webm");
-        formData.append("userType", "artisan");
-        await submitVoice(formData);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = reader.result as string;
+          await submitVoice(base64);
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.start();

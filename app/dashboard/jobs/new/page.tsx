@@ -76,9 +76,12 @@ export default function CreateJobPage() {
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", blob, "recording.webm");
-        await submitVoice(formData);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = (reader.result as string).split(",")[1];
+          await submitVoice(base64);
+        };
+        reader.readAsDataURL(blob);
       };
 
       recorder.start();

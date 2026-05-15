@@ -72,7 +72,7 @@ export interface OnboardingState {
   // Actions
   initOnboarding: (role: "worker" | "customer") => void;
   submitResponse: (text: string) => Promise<void>;
-  submitVoice: (formData: FormData) => Promise<void>;
+  submitVoice: (audioData: string) => Promise<void>;
   submitText: (text: string, context: Array<{ role: string; content: string }>) => Promise<void>;
   correctField: (fieldName: string, value: string) => void;
   confirmAndSave: () => Promise<boolean>;
@@ -309,13 +309,13 @@ export const useOnboardingStore = create<OnboardingState>()(
         }
       },
 
-      submitVoice: async (formData: FormData) => {
+      submitVoice: async (audioData: string) => {
         set({ isProcessing: true, error: null });
 
         try {
           const { role } = get();
           const response = await apiService.post<VoiceOnboardResponse>("/ai/onboard/voice", {
-            body: formData,
+            body: { audioData, userType: role === "worker" ? "artisan" : "customer" },
           });
 
           // Map AI response fields to confirmationFields, dropping nulls/undefined
