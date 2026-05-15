@@ -125,9 +125,8 @@ export async function generateMetadata({
 
   const skillsList = worker.skills.map((s) => s.name).join(", ");
   const title = `${worker.display_name} - Artisan on ${BRAND.name}`;
-  const description = worker.bio.length > 160
-    ? `${worker.bio.slice(0, 157)}...`
-    : worker.bio;
+  const bio = worker.bio || "";
+  const description = bio.length > 160 ? `${bio.slice(0, 157)}...` : bio || `${worker.display_name} is an artisan on ${BRAND.name}`;
   const completionRate = worker.completion_rate ?? 0;
   const extendedDescription = `${description} | Skills: ${skillsList} | Rating: ${worker.rating}/5 | ${worker.completed_jobs} jobs completed | Trust Score: ${worker.trust_score}/100 | Completion Rate: ${completionRate}%`;
 
