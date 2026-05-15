@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChevronRight, Loader2, Star, Search, ArrowLeft } from "lucide-react";
+import { ChevronRight, Loader2, Star, Search, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/marketplace/SearchBar";
 import { MarketplaceFilters } from "@/components/marketplace/MarketplaceFilters";
@@ -27,6 +27,7 @@ export default function MarketplacePage() {
     hasMore,
     isLoading,
     searchQuery,
+    matchExplanations,
     error,
     search,
     loadMore,
@@ -37,6 +38,7 @@ export default function MarketplacePage() {
   }, [search]);
 
   const hasResults = workers.length > 0;
+  const isAiRanked = !!searchQuery;
 
   return (
     <div className="min-h-screen overflow-y-auto bg-gray-50">
@@ -56,7 +58,7 @@ export default function MarketplacePage() {
               What do you need done?
             </h1>
             <p className="text-sm sm:text-base text-gray-600">
-              Find verified artisans near you — matched by AI for quality and reliability
+              Describe what you need and our AI will find the best artisans for you
             </p>
           </div>
 
@@ -99,11 +101,19 @@ export default function MarketplacePage() {
         <div className="mt-8">
           {/* Section Header */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-gray-900">All Artisans</h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-xl font-bold text-gray-900">
+                {isAiRanked ? "Best Matches" : "All Artisans"}
+              </h2>
               {total > 0 && (
                 <span className="text-xs font-medium text-gray-500 bg-gray-200 px-2.5 py-1 rounded-full">
                   {total} available
+                </span>
+              )}
+              {isAiRanked && (
+                <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  <Sparkles className="w-3 h-3" />
+                  AI-ranked
                 </span>
               )}
             </div>
