@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { apiService } from "@/api/api-service";
 import { JobProposalsView } from "@/components/customer/JobProposalsView";
 import { ActiveJobsView } from "@/components/customer/ActiveJobsView";
 import { WorkerJobFeed } from "@/components/worker/WorkerJobFeed";
@@ -28,6 +28,22 @@ function JobsPageInner() {
   const [workerTab, setWorkerTab] = useState<WorkerTab>(
     tabParam === "active" ? "active" : "feed"
   );
+  const [unresolvedCount, setUnresolvedCount] = useState(0);
+
+  const handleUnresolvedCount = useCallback((count: number) => {
+    setUnresolvedCount(count);
+  }, []);
+
+  // Pre-fetch unresolved count on mount so the badge shows before the tab is clicked
+  useEffect(() => {
+    const endpoint = userType === "worker" ? "/worker/my-jobs" : "/customer/my-jobs";
+    apiService
+      .get<{ jobs: { status: string }[] }>(endpoint)
+      .then((data) =>
+        setUnresolvedCount((data.jobs ?? []).filter((j) => j.status !== "completed").length)
+      )
+      .catch(() => {});
+  }, [userType]);
 
   // Sync tab if URL param changes (e.g. navigating from payments)
   useEffect(() => {
@@ -64,11 +80,16 @@ function JobsPageInner() {
           </TabBtn>
           <TabBtn active={customerTab === "active"} onClick={() => setCustomerTab("active")}>
             Active Jobs
+            {unresolvedCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-[var(--orange)] text-white w-4 h-4 text-[10px] font-bold leading-none">
+                {unresolvedCount > 9 ? "9+" : unresolvedCount}
+              </span>
+            )}
           </TabBtn>
         </div>
 
         {customerTab === "posts"  && <JobProposalsView />}
-        {customerTab === "active" && <ActiveJobsView />}
+        {customerTab === "active" && <ActiveJobsView onUnresolvedCount={handleUnresolvedCount} />}
       </div>
     );
   }
@@ -88,11 +109,21 @@ function JobsPageInner() {
         </TabBtn>
         <TabBtn active={workerTab === "active"} onClick={() => setWorkerTab("active")}>
           My Jobs
+          {unresolvedCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-[var(--orange)] text-white w-4 h-4 text-[10px] font-bold leading-none">
+              {unresolvedCount > 9 ? "9+" : unresolvedCount}
+            </span>
+          )}
         </TabBtn>
       </div>
 
       {workerTab === "feed"   && <WorkerJobFeed />}
-      {workerTab === "active" && <WorkerActiveJobsView highlightJobId={highlightId} />}
+      {workerTab === "active" && (
+        <WorkerActiveJobsView
+          highlightJobId={highlightId}
+          onUnresolvedCount={handleUnresolvedCount}
+        />
+      )}
     </div>
   );
 }
@@ -109,7 +140,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+      className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
         active ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
       }`}
     >

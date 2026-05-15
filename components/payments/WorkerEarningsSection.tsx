@@ -236,7 +236,7 @@ export function WorkerEarningsSection() {
           return (
             <div
               key={p.job_id}
-              className="rounded-xl border bg-card overflow-hidden"
+              className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden"
             >
               {/* Clickable header — goes to My Jobs tab with this job highlighted */}
               <button
@@ -337,7 +337,7 @@ function SummaryCard({
       ? "border-amber-200 bg-amber-50"
       : highlight === "orange"
       ? "border-orange-200 bg-orange-50"
-      : "border-border bg-card";
+      : "border-gray-200 bg-gray-50";
 
   return (
     <div className={cn("rounded-xl border p-4 space-y-1", borderCls)}>

@@ -102,7 +102,7 @@ export function JobProposalsView() {
           Back to my posts
         </button>
 
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
           <div className="flex items-start justify-between gap-3 mb-1">
             <h3 className="font-semibold text-foreground">{selectedJob.title}</h3>
             <StatusBadge status={selectedJob.status} />
@@ -143,7 +143,7 @@ export function JobProposalsView() {
             const jobAssigned = selectedJob.status === "assigned";
 
             return (
-              <div key={proposal.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+              <div key={proposal.id} className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                   {proposal.photo_url
                     ? <img src={proposal.photo_url} alt={proposal.worker_name} className="w-full h-full object-cover" />
@@ -244,7 +244,7 @@ export function JobProposalsView() {
 
       <div className="space-y-3">
         {jobRequests.filter(j => j.status === "open").map((job) => (
-          <div key={job.id} className="rounded-xl border border-border bg-card p-4">
+          <div key={job.id} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="flex items-start justify-between gap-3 mb-1">
               <div className="min-w-0">
                 <h4 className="font-medium text-sm text-foreground truncate">{job.title}</h4>

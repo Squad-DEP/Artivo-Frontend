@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useReputationStore } from "@/store/reputationStore";
 import { useCreditStore } from "@/store/creditStore";
 import { useJobStore } from "@/store/jobStore";
 import { useOAuthRedirect } from "@/hooks/useOAuthRedirect";
+import { apiService } from "@/api/api-service";
 import { motion } from "framer-motion";
 import {
   Briefcase,
@@ -23,6 +24,7 @@ import {
   Shield,
   Target,
   Loader2,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -137,6 +139,7 @@ function CreditGaugeCompact({ score }: { score: number }) {
 
 function WorkerDashboard({ userName }: { userName: string }) {
   const router = useRouter();
+  const [pendingPayout, setPendingPayout] = useState(0);
 
   const {
     trustScore,
@@ -163,6 +166,10 @@ function WorkerDashboard({ userName }: { userName: string }) {
     fetchReviews();
     fetchCreditProfile();
     fetchStats();
+    apiService
+      .get<{ summary: { failed_payout: number } }>("/worker/earnings")
+      .then((d) => setPendingPayout(d.summary?.failed_payout ?? 0))
+      .catch(() => {});
   }, [fetchReputation, fetchReviews, fetchCreditProfile, fetchStats]);
 
   const overallTrust = trustScore?.overall ?? 0;
@@ -228,13 +235,35 @@ function WorkerDashboard({ userName }: { userName: string }) {
         />
       </div>
 
+      {/* Payout attention banner */}
+      {pendingPayout > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+          <Banknote className="w-5 h-5 text-orange-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-orange-800">
+              ₦{Number(pendingPayout).toLocaleString("en-NG")} waiting for you
+            </p>
+            <p className="text-xs text-orange-700 mt-0.5">
+              A completed job payout is ready — add your bank account to receive it.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white text-xs"
+            onClick={() => router.push("/dashboard/payments")}
+          >
+            Add bank account
+          </Button>
+        </div>
+      )}
+
       {/* Reputation & Credit Section */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Trust Score Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -286,7 +315,7 @@ function WorkerDashboard({ userName }: { userName: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -343,7 +372,7 @@ function WorkerDashboard({ userName }: { userName: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent Reviews</h2>
@@ -356,7 +385,7 @@ function WorkerDashboard({ userName }: { userName: string }) {
           </div>
           <div className="space-y-3">
             {reviewSummary.recent_reviews.slice(0, 3).map((review) => (
-              <div key={review.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+              <div key={review.id} className="flex items-start gap-3 p-3 bg-gray-100 rounded-xl">
                 <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center font-medium text-gray-600 text-sm shrink-0">
                   {review.reviewer_name.charAt(0)}
                 </div>
@@ -402,7 +431,7 @@ function WorkerDashboard({ userName }: { userName: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
         >
           <h3 className="font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -467,7 +496,7 @@ function CustomerDashboard({ userName }: { userName: string }) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
         >
           <h2 className="text-lg font-semibold mb-4">Get Started</h2>
           <p className="text-sm text-gray-500 mb-6">
@@ -497,7 +526,7 @@ function CustomerDashboard({ userName }: { userName: string }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-gray-50 rounded-2xl border border-gray-200 p-6"
         >
           <h3 className="font-semibold mb-4">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -549,24 +578,28 @@ function StatCard({
   color: "blue" | "green" | "orange" | "purple";
 }) {
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    orange: "bg-[var(--orange)]/10 text-[var(--orange)]",
-    purple: "bg-purple-50 text-purple-600",
+    blue: "bg-blue-100 text-blue-600",
+    green: "bg-green-100 text-green-600",
+    orange: "bg-[var(--orange)]/15 text-[var(--orange)]",
+    purple: "bg-purple-100 text-purple-600",
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5"
+      className="bg-gray-50 rounded-2xl border border-gray-200 p-4 sm:p-5"
     >
-      <div className={`w-10 h-10 rounded-lg ${colorClasses[color]} flex items-center justify-center mb-3`}>
-        {icon}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-4xl sm:text-5xl font-bold text-gray-900 leading-none tracking-tight">{value}</p>
+          <p className="text-sm text-gray-500 mt-2">{label}</p>
+          {trend && <p className="text-xs text-gray-400 mt-0.5">{trend}</p>}
+        </div>
+        <div className={`w-10 h-10 rounded-lg ${colorClasses[color]} flex items-center justify-center shrink-0`}>
+          {icon}
+        </div>
       </div>
-      <p className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm text-gray-500">{label}</p>
-      {trend && <p className="text-xs text-gray-400 mt-1">{trend}</p>}
     </motion.div>
   );
 }

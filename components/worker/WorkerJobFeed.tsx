@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { StreamedJob } from "@/api/types/marketplace-api";
-import { Plus, Check, X } from "lucide-react";
+import { Plus, Check, X, Search } from "lucide-react";
 
 const formatBudget = (v: number | null | undefined) =>
   !v || v === 0 ? "Negotiable" : `₦${Number(v).toLocaleString("en-NG")}`;
@@ -38,6 +38,7 @@ export function WorkerJobFeed() {
   const [proposedMax, setProposedMax] = React.useState<Record<string, string>>({});
   const [acceptingJobId, setAcceptingJobId] = React.useState<string | null>(null);
   const [subscribeOpen, setSubscribeOpen] = React.useState(false);
+  const [typeSearch, setTypeSearch] = React.useState("");
 
   React.useEffect(() => {
     fetchJobTypes();
@@ -77,46 +78,71 @@ export function WorkerJobFeed() {
   return (
     <div className="space-y-6">
       {/* Job Type Subscriptions */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Job Type Subscriptions</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Only jobs from these types appear in your feed.</p>
           </div>
-          <Popover open={subscribeOpen} onOpenChange={setSubscribeOpen}>
+          <Popover open={subscribeOpen} onOpenChange={(open) => { setSubscribeOpen(open); if (!open) setTypeSearch(""); }}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
                 <Plus className="w-3.5 h-3.5" />
                 Add
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-1">
-              {availableJobTypes.length === 0 ? (
-                <p className="px-3 py-2 text-sm text-muted-foreground">No job types available.</p>
-              ) : (
-                availableJobTypes.map((jt) => {
-                  const subscribed = isSubscribed(jt.id);
-                  return (
-                    <button
-                      key={jt.id}
-                      onClick={() => handleToggleSubscription(jt.id)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded hover:bg-muted transition-colors text-left cursor-pointer"
-                    >
-                      <span
-                        className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors",
-                          subscribed
-                            ? "bg-[var(--orange,#f97316)] border-[var(--orange,#f97316)]"
-                            : "border-border"
-                        )}
-                      >
-                        {subscribed && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                      </span>
-                      {jt.name}
-                    </button>
+            <PopoverContent align="end" className="w-80 p-0">
+              {/* Search bar */}
+              <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
+                <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search job types…"
+                  value={typeSearch}
+                  onChange={(e) => setTypeSearch(e.target.value)}
+                  className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                  autoFocus
+                />
+                {typeSearch && (
+                  <button onClick={() => setTypeSearch("")} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {/* List */}
+              <div className="max-h-[26rem] overflow-y-auto p-1">
+                {availableJobTypes.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-muted-foreground">No job types available.</p>
+                ) : (() => {
+                  const filtered = availableJobTypes.filter((jt) =>
+                    jt.name.toLowerCase().includes(typeSearch.toLowerCase())
                   );
-                })
-              )}
+                  return filtered.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-muted-foreground text-center">No matches for "{typeSearch}"</p>
+                  ) : filtered.map((jt) => {
+                    const subscribed = isSubscribed(jt.id);
+                    return (
+                      <button
+                        key={jt.id}
+                        onClick={() => handleToggleSubscription(jt.id)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded hover:bg-muted transition-colors text-left cursor-pointer"
+                      >
+                        <span
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+                            subscribed
+                              ? "bg-[var(--orange,#f97316)] border-[var(--orange,#f97316)]"
+                              : "border-border"
+                          )}
+                        >
+                          {subscribed && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                        </span>
+                        {jt.name}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -127,7 +153,7 @@ export function WorkerJobFeed() {
           <div className="flex flex-wrap gap-2">
             {subscriptions.map((sub) => (
               <span
-                key={sub.job_type_id}
+                key={sub.id}
                 className="inline-flex items-center gap-1.5 rounded-full border border-[var(--orange,#f97316)]/40 bg-[var(--orange,#f97316)]/10 px-3 py-1 text-xs font-medium text-[var(--orange,#f97316)]"
               >
                 {sub.job_type_name}
@@ -176,7 +202,7 @@ export function WorkerJobFeed() {
       {tab === "available" && (
         <div className="space-y-3">
           {streamedJobs.length === 0 ? (
-            <div className="rounded-lg border bg-card p-8 text-center">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
               <p className="text-sm text-muted-foreground">No open jobs at the moment. Check back soon.</p>
             </div>
           ) : (
@@ -200,7 +226,7 @@ export function WorkerJobFeed() {
       {tab === "applications" && (
         <div className="space-y-3">
           {proposals.length === 0 ? (
-            <div className="rounded-lg border bg-card p-8 text-center">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
               <p className="text-sm text-muted-foreground">No applications yet. Apply to jobs in the Available tab.</p>
             </div>
           ) : (
@@ -252,7 +278,7 @@ function JobCard({
   const isValid = min > 0 && max > 0 && max >= min;
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <h4 className="text-sm font-semibold text-foreground truncate">{job.title}</h4>
@@ -316,7 +342,7 @@ function ProposalCard({ proposal }: { proposal: WorkerProposal }) {
   const { label, className } = statusConfig[proposal.status] ?? statusConfig.pending;
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
           <h4 className="text-sm font-semibold text-foreground truncate">{proposal.title}</h4>
