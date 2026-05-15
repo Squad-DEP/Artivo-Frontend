@@ -70,6 +70,8 @@ export default function WorkerOnboardingPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const editInputRef = useRef<HTMLInputElement | null>(null);
+  const aiPanelRef = useRef<HTMLDivElement>(null);
+  const prevFieldCount = useRef(Object.keys(confirmationFields).length);
 
   // Redirect already-onboarded users to dashboard
   useEffect(() => {
@@ -88,6 +90,17 @@ export default function WorkerOnboardingPage() {
   useEffect(() => {
     initOnboarding("worker");
   }, [initOnboarding]);
+
+  // Scroll to the AI fields panel the first time fields appear (after recording / text submit)
+  useEffect(() => {
+    const currentCount = Object.keys(confirmationFields).length;
+    if (currentCount > 0 && prevFieldCount.current === 0) {
+      setTimeout(() => {
+        aiPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+    prevFieldCount.current = currentCount;
+  }, [confirmationFields]);
 
   const hasFields = Object.keys(confirmationFields).length > 0;
   const REQUIRED_FIELDS = FIELDS.filter((f) => f.key !== "bio");
@@ -109,10 +122,10 @@ export default function WorkerOnboardingPage() {
 
       // Pick the best supported codec — Safari needs audio/mp4
       const mimeType = [
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/ogg;codecs=opus",
-        "audio/mp4",
+        "audio/webm;codecs=opus", // Chrome / Android — best Whisper support
+        "audio/ogg;codecs=opus",  // Firefox
+        "audio/mp4",              // Safari — must come before plain webm
+        "audio/webm",             // Safari fallback (may use non-Opus codec)
       ].find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
 
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -325,20 +338,13 @@ export default function WorkerOnboardingPage() {
                 </div>
               )}
 
-              {!useTextInput && (
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm max-sm:hidden">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className={cn("w-4 h-4", isRecording ? "text-amber-500 animate-pulse" : "text-amber-400")} />
-                    <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">Live Transcription</span>
-                    {isRecording && (
-                      <span className="ml-auto flex items-center gap-1 text-xs text-red-500">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Recording
-                      </span>
-                    )}
+              {!useTextInput && isProcessing && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 shadow-sm flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-amber-600 animate-spin shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Analyzing your recording…</p>
+                    <p className="text-xs text-amber-600 mt-0.5">AI is extracting your details — scroll down to see them appear</p>
                   </div>
-                  <p className={cn("text-sm leading-relaxed min-h-[60px]", transcription ? "text-foreground" : "text-foreground/30 italic")}>
-                    {transcription || "Your words will appear here as you speak..."}
-                  </p>
                 </div>
               )}
 

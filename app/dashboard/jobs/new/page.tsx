@@ -67,7 +67,7 @@ export default function CreateJobPage() {
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType =
-        ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find(
+        ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4", "audio/webm"].find(
           (t) => MediaRecorder.isTypeSupported(t)
         ) ?? "";
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
