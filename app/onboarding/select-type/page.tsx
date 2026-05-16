@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Mic, Sparkles, ArrowRight, Wrench, Search } from "lucide-react";
+import { Mic, Sparkles, ArrowRight, Wrench, Search, Building2 } from "lucide-react";
 import { BRAND } from "@/lib/constants";
 
 export default function SelectTypePage() {
@@ -63,58 +63,76 @@ export default function SelectTypePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="w-full max-w-2xl grid sm:grid-cols-2 gap-4"
+          className="w-full max-w-2xl flex flex-col gap-4"
         >
-          {/* Artisan card */}
+          {/* Top row — two role cards side by side */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Artisan card */}
+            <button
+              onClick={() => router.push("/onboarding/worker/join")}
+              className="group relative text-left rounded-2xl border-2 border-gray-100 bg-white p-7 hover:border-[var(--orange)] hover:shadow-xl hover:shadow-[var(--orange)]/10 transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[var(--orange)]/10 flex items-center justify-center mb-6 group-hover:bg-[var(--orange)] transition-colors duration-300">
+                <Wrench className="w-6 h-6 text-[var(--orange)] group-hover:text-white transition-colors duration-300" />
+              </div>
+
+              <div className="mb-1 leading-none">
+                <span className="block text-xl font-bold text-foreground/30 mb-1">I</span>
+                <span className="block text-[52px] sm:text-[60px] font-black tracking-[-3px] text-foreground leading-none">AM</span>
+              </div>
+              <p className="text-lg font-semibold text-foreground/70 mb-4">an Artisan</p>
+
+              <p className="text-[15px] text-foreground/60 leading-relaxed mb-6">
+                Barber, plumber, electrician, tailor — whatever you do, get found and get paid.
+              </p>
+
+              <div className="flex items-center gap-1.5 text-[var(--orange)] font-semibold text-sm">
+                Set up my profile
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+
+            {/* Customer card */}
+            <button
+              onClick={() => router.push("/onboarding/customer")}
+              className="group relative text-left rounded-2xl border-2 border-gray-100 bg-white p-7 hover:border-[var(--orange)] hover:shadow-xl hover:shadow-[var(--orange)]/10 transition-all duration-300"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[var(--orange)]/10 flex items-center justify-center mb-6 group-hover:bg-[var(--orange)] transition-colors duration-300">
+                <Search className="w-6 h-6 text-[var(--orange)] group-hover:text-white transition-colors duration-300" />
+              </div>
+
+              <div className="mb-1 leading-none">
+                <span className="block text-xl font-bold text-foreground/30 mb-1">I</span>
+                <span className="block text-[60px] sm:text-[70px] font-black tracking-[-3px] text-foreground leading-none">NEED</span>
+              </div>
+              <p className="text-lg font-semibold text-foreground/70 mb-4">skilled help</p>
+
+              <p className="text-[15px] text-foreground/60 leading-relaxed mb-6">
+                Find trusted, vetted artisans near you — plumbers, cleaners, mechanics and more.
+              </p>
+
+              <div className="flex items-center gap-1.5 text-[var(--orange)] font-semibold text-sm">
+                Find artisans
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+          </div>
+
+          {/* Organization — full width below both cards */}
           <button
-            onClick={() => router.push("/onboarding/worker")}
-            className="group relative text-left rounded-2xl border-2 border-gray-100 bg-white p-7 hover:border-[var(--orange)] hover:shadow-xl hover:shadow-[var(--orange)]/10 transition-all duration-300"
+            onClick={() => router.push("/onboarding/worker/organization")}
+            className="group flex items-center gap-5 px-7 py-6 rounded-2xl border-2 border-gray-100 bg-white hover:border-[var(--orange)]/40 hover:bg-[var(--orange)]/5 transition-all duration-200 text-left w-full"
           >
-            <div className="w-12 h-12 rounded-xl bg-[var(--orange)]/10 flex items-center justify-center mb-6 group-hover:bg-[var(--orange)] transition-colors duration-300">
-              <Wrench className="w-6 h-6 text-[var(--orange)] group-hover:text-white transition-colors duration-300" />
+            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center group-hover:bg-[var(--orange)]/10 transition-colors shrink-0">
+              <Building2 className="w-6 h-6 text-foreground/40 group-hover:text-[var(--orange)] transition-colors" />
             </div>
-
-            {/* Identity line */}
-            <div className="mb-1 leading-none">
-              <span className="block text-xl font-bold text-foreground/30 mb-1">I</span>
-              <span className="block text-[52px] sm:text-[60px] font-black tracking-[-3px] text-foreground leading-none">AM</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-foreground/60 group-hover:text-foreground transition-colors">
+                I represent an Association
+              </p>
+              <p className="text-sm text-foreground/35 mt-1">Upload your artisan roster as CSV or JSON — we handle the rest</p>
             </div>
-            <p className="text-lg font-semibold text-foreground/70 mb-4">an Artisan</p>
-
-            <p className="text-[15px] text-foreground/60 leading-relaxed mb-6">
-              Barber, plumber, electrician, tailor — whatever you do, get found and get paid.
-            </p>
-
-            <div className="flex items-center gap-1.5 text-[var(--orange)] font-semibold text-sm">
-              Set up my profile
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </button>
-
-          {/* Customer card */}
-          <button
-            onClick={() => router.push("/onboarding/customer")}
-            className="group relative text-left rounded-2xl border-2 border-gray-100 bg-white p-7 hover:border-[var(--orange)] hover:shadow-xl hover:shadow-[var(--orange)]/10 transition-all duration-300"
-          >
-            <div className="w-12 h-12 rounded-xl bg-[var(--orange)]/10 flex items-center justify-center mb-6 group-hover:bg-[var(--orange)] transition-colors duration-300">
-              <Search className="w-6 h-6 text-[var(--orange)] group-hover:text-white transition-colors duration-300" />
-            </div>
-
-            {/* Identity line */}
-            <div className="mb-1 leading-none">
-              <span className="block text-xl font-bold text-foreground/30 mb-1">I</span>
-              <span className="block text-[60px] sm:text-[70px] font-black tracking-[-3px] text-foreground leading-none">NEED</span>
-            </div>
-            <p className="text-lg font-semibold text-foreground/70 mb-4">skilled help</p>
-
-            <p className="text-[15px] text-foreground/60 leading-relaxed mb-6">
-              Find trusted, vetted artisans near you — plumbers, cleaners, mechanics and more.
-            </p>
-
-            <div className="flex items-center gap-1.5 text-[var(--orange)] font-semibold text-sm">
-              Find artisans
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
+            <ArrowRight className="w-5 h-5 text-foreground/20 group-hover:text-[var(--orange)] group-hover:translate-x-0.5 transition-all shrink-0" />
           </button>
         </motion.div>
 

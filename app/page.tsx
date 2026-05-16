@@ -30,10 +30,12 @@ import { useAuthStore } from "@/store/authStore";
 import { useInView } from "react-intersection-observer";
 import { BRAND, FAQ_ITEMS, STATS, HOW_IT_WORKS } from "@/lib/constants";
 import { SERVICE_CATEGORIES, POPULAR_SKILLS } from "@/lib/constants/categories";
+import { OrgApplyModal } from "./_components/OrgApplyModal";
 
 export default function Home() {
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [userType, setUserType] = useState<"worker" | "customer">("worker");
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
   const router = useRouter();
   const { user } = useAuthStore();
 
@@ -426,12 +428,21 @@ export default function Home() {
             >
               Get started here!
             </Button>
+            <Button
+              onClick={() => setApplyModalOpen(true)}
+              variant="outline"
+              className="h-[56px] sm:h-[64px] px-8 sm:px-12 text-lg sm:text-xl font-bold text-white border-white/30 bg-white/10 hover:bg-white/20 hover:border-white/50 leading-[22px] rounded-[13px]"
+            >
+              Apply via Association
+            </Button>
           </div>
         </div>
 
         {/* Decorative elements */}
         <div className="absolute bottom-0 left-0 right-0 h-[400px] bg-gradient-to-t from-[var(--orange)]/20 to-transparent" />
       </section>
+
+      <OrgApplyModal open={applyModalOpen} onClose={() => setApplyModalOpen(false)} />
 
       <Footer />
     </div>

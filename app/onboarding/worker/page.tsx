@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { useAuthStore } from "@/store/authStore";
+import { getApiBaseUrl } from "@/api/api-service";
 
 type OnboardingPhase = "intro" | "recording" | "review";
 
@@ -44,7 +45,7 @@ const FIELDS: FieldConfig[] = [
 
 export default function WorkerOnboardingPage() {
   const router = useRouter();
-  const { user, initialized, isOnboardingComplete, guestSignup } = useAuthStore();
+  const { user, initialized, isOnboardingComplete } = useAuthStore();
   const {
     confirmationFields,
     isProcessing,
@@ -66,7 +67,7 @@ export default function WorkerOnboardingPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [useTextInput, setUseTextInput] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
-  const [isCreatingGuest, setIsCreatingGuest] = useState(false);
+  const [skipping, setSkipping] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -74,21 +75,52 @@ export default function WorkerOnboardingPage() {
   const aiPanelRef = useRef<HTMLDivElement>(null);
   const prevFieldCount = useRef(Object.keys(confirmationFields).length);
 
-  // Redirect already-onboarded users to dashboard
-  useEffect(() => {
-    if (isOnboardingComplete()) {
-      router.replace("/dashboard");
+  // Skip AI onboarding — phone-signup then go to profile
+  const handleSkip = async () => {
+    setSkipping(true);
+    try {
+      // If already authenticated (e.g. came via register), go straight to profile
+      if (user) {
+        router.push("/dashboard/profile");
+        return;
+      }
+      // Phone-signup flow: use stored phone from OTP step
+      const phone = sessionStorage.getItem("artivo_onboard_phone");
+      if (!phone) {
+        router.push("/dashboard/profile");
+        return;
+      }
+      const res = await fetch(`${getApiBaseUrl()}/v1/auth/phone-signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Persist auth state
+        useAuthStore.setState({ user: { ...data.user, access_token: data.access_token }, initialized: true });
+        sessionStorage.removeItem("artivo_onboard_phone");
+      }
+    } catch {
+      // swallow — still navigate forward
+    } finally {
+      setSkipping(false);
+      router.push("/dashboard/profile");
     }
-  }, [isOnboardingComplete, router]);
+  };
 
-  // Auto-create a guest account so AI endpoints have a valid JWT
+  // Redirect to login if not authenticated AND no phone in session (not mid phone-signup flow)
   useEffect(() => {
     if (!initialized) return;
     if (!user) {
-      setIsCreatingGuest(true);
-      guestSignup("worker").finally(() => setIsCreatingGuest(false));
+      const phoneInSession = sessionStorage.getItem("artivo_onboard_phone");
+      if (!phoneInSession) router.replace("/login");
+      return;
     }
-  }, [initialized]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isOnboardingComplete()) {
+      router.replace("/dashboard");
+    }
+  }, [initialized, user, isOnboardingComplete, router]);
 
   // Focus the edit input when a field is selected for editing
   useEffect(() => {
@@ -210,15 +242,15 @@ export default function WorkerOnboardingPage() {
   // --- INTRO PHASE ---
   if (phase === "intro") {
     return (
-      <main className="flex flex-col items-center justify-center min-h-screen w-full px-5 py-14">
-        {isCreatingGuest && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-[var(--orange)]" />
-              <p className="text-sm text-foreground/60">Getting things ready…</p>
-            </div>
-          </div>
-        )}
+      <main className="flex flex-col items-center justify-center min-h-screen w-full px-5 py-14 relative">
+        {/* Back to phone step */}
+        <button
+          onClick={() => router.push("/onboarding/worker/phone")}
+          className="absolute top-6 left-6 flex items-center gap-1.5 text-sm text-foreground/40 hover:text-foreground/70 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
 
         <div className="w-full max-w-[580px] flex flex-col items-center text-center">
           {/* Step badge */}
@@ -264,6 +296,20 @@ export default function WorkerOnboardingPage() {
           </button>
 
           <p className="mt-4 text-xs text-foreground/30">Takes about 30 seconds · you can edit everything after</p>
+
+          {/* Big visible skip button */}
+          <button
+            onClick={handleSkip}
+            disabled={skipping}
+            className="mt-6 w-full max-w-[340px] flex items-center justify-center gap-2 px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-foreground/60 font-semibold text-base hover:border-gray-300 hover:text-foreground transition-all disabled:opacity-50"
+          >
+            {skipping ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Setting up your profile…</>
+            ) : (
+              "Skip — go straight to my profile"
+            )}
+          </button>
+          <p className="mt-2 text-xs text-foreground/25">You can fill in your details manually</p>
         </div>
       </main>
     );

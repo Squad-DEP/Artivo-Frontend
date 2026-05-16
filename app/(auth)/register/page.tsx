@@ -89,9 +89,8 @@ export default function AuthRegisterPage() {
       role: role as string,
     });
     if (success) {
-      // Route directly to the appropriate onboarding screen based on selected role
       if (role === "worker") {
-        router.push("/onboarding/worker");
+        router.push("/onboarding/worker/join");
       } else {
         router.push("/onboarding/customer");
       }
