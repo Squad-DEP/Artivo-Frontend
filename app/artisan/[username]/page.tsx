@@ -43,30 +43,66 @@ async function fetchWorkerByUsername(
     }
 
     const data: PublicProfileResponse = await res.json();
-    const profileWorker = data.worker;
+    const p = data.worker;
 
-    // Map the public profile response to the WorkerProfile type
-    // The public profile endpoint returns a subset of fields
+    // Map the full public profile response to the WorkerProfile type
     const workerProfile: WorkerProfile = {
-      id: profileWorker.id,
-      user_id: profileWorker.id,
-      display_name: profileWorker.full_name,
+      id: p.share_slug,
+      user_id: p.share_slug,
+      display_name: p.display_name,
       username,
-      bio: profileWorker.bio,
-      skills: profileWorker.skills.map((skillName, idx) => ({
+      bio: p.bio ?? "",
+      phone: p.phone ?? undefined,
+      profile_image_url: p.photo_url ?? undefined,
+      skills: (p.skills ?? []).map((skillName, idx) => ({
         id: `skill-${idx}`,
         name: skillName,
       })),
       categories: [],
-      location: { city: "", state: "", country: "" },
-      portfolio: [],
-      trust_score: profileWorker.credit_score,
-      completed_jobs: profileWorker.total_jobs,
-      completion_rate: profileWorker.completion_rate,
-      rating: profileWorker.average_rating,
+      location: {
+        city: p.location ?? "",
+        state: "",
+        country: "",
+      },
+      portfolio: (p.portfolio ?? []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description ?? undefined,
+        image_url: item.image_url ?? "",
+        images: item.images ?? [],
+        category: item.category ?? undefined,
+        created_at: item.created_at ?? new Date().toISOString(),
+      })),
+      experience: (p.experience ?? []).map((e) => ({
+        id: e.id,
+        title: e.title,
+        company: e.company,
+        start_year: e.start_year,
+        end_year: e.end_year ?? undefined,
+        description: e.description ?? undefined,
+      })),
+      education: (p.education ?? []).map((e) => ({
+        id: e.id,
+        title: e.title,
+        institution: e.institution,
+        year: e.year ?? 0,
+      })),
+      certifications: (p.certifications ?? []).map((c) => ({
+        id: c.id,
+        title: c.title,
+        issuer: c.issuer,
+        year: c.year ?? 0,
+      })),
+      languages: p.languages ?? [],
+      hourly_rate: p.hourly_rate ?? undefined,
+      minimum_budget: p.minimum_budget ?? undefined,
+      trust_score: Math.round((p.average_rating / 5) * 100),
+      completed_jobs: 0,
+      completion_rate: undefined,
+      rating: p.average_rating,
       reviews_count: 0,
       verification_status: "verified",
-      availability: "available",
+      availability: (p.availability === "unavailable" ? "offline" : (p.availability as "available" | "busy" | "offline")) ?? "available",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

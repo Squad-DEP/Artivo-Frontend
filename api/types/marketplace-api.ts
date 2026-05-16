@@ -193,15 +193,66 @@ export interface AdvanceRequestResponse {
 }
 
 /** GET /profile/:slug response */
-export interface PublicProfileWorker {
+export interface PublicProfileEducation {
   id: string;
-  full_name: string;
-  bio: string;
+  title: string;
+  institution: string;
+  year: number | null;
+  file_url: string | null;
+}
+
+export interface PublicProfileCertification {
+  id: string;
+  title: string;
+  issuer: string;
+  year: number | null;
+  file_url: string | null;
+}
+
+export interface PublicProfilePortfolio {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  images: string[];
+  category: string | null;
+  created_at: string;
+}
+
+export interface PublicProfileExperience {
+  id: string;
+  title: string;
+  company: string;
+  start_year: number;
+  end_year: number | null;
+  description: string | null;
+}
+
+export interface PublicProfileWorker {
+  // identity
+  display_name: string;
+  photo_url: string | null;
+  bio: string | null;
+  tagline: string | null;
+  share_slug: string;
+  // contact
+  phone: string | null;
+  email: string;
+  // work
   skills: string[];
-  credit_score: number;
-  completion_rate: number;
-  total_jobs: number;
+  categories: string[];
+  location: string | null;
+  availability: string;
+  hourly_rate: number | null;
+  minimum_budget: number | null;
+  languages: string[];
+  // reputation
   average_rating: number;
+  // collections
+  experience: PublicProfileExperience[];
+  education: PublicProfileEducation[];
+  certifications: PublicProfileCertification[];
+  portfolio: PublicProfilePortfolio[];
 }
 
 export interface PublicProfileResponse {

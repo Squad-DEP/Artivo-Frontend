@@ -100,7 +100,7 @@ export function FileUpload({
           </p>
         </div>
       ) : (
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 overflow-hidden w-full">
           {previewUrl ? (
             <img
               src={previewUrl}

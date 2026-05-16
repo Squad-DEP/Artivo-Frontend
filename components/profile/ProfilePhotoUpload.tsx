@@ -82,7 +82,7 @@ export function ProfilePhotoUpload({
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={(v) => { if (!isUploading) setOpen(v); }}>
-        <DialogContent className="sm:max-w-[50vw]">
+        <DialogContent className="w-full sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>Profile Photo</DialogTitle>
           </DialogHeader>

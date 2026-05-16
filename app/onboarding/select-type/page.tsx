@@ -75,12 +75,13 @@ export default function SelectTypePage() {
             </div>
 
             {/* Identity line */}
-            <div className="mb-4 leading-none">
-              <span className="block text-sm font-semibold text-foreground/35 mb-0.5">I</span>
+            <div className="mb-1 leading-none">
+              <span className="block text-xl font-bold text-foreground/30 mb-1">I</span>
               <span className="block text-[52px] sm:text-[60px] font-black tracking-[-3px] text-foreground leading-none">AM</span>
             </div>
+            <p className="text-lg font-semibold text-foreground/70 mb-4">an Artisan</p>
 
-            <p className="text-sm text-foreground/50 leading-relaxed mb-6">
+            <p className="text-[15px] text-foreground/60 leading-relaxed mb-6">
               Barber, plumber, electrician, tailor — whatever you do, get found and get paid.
             </p>
 
@@ -100,12 +101,13 @@ export default function SelectTypePage() {
             </div>
 
             {/* Identity line */}
-            <div className="mb-4 leading-none">
-              <span className="block text-sm font-semibold text-foreground/35 mb-0.5">I</span>
+            <div className="mb-1 leading-none">
+              <span className="block text-xl font-bold text-foreground/30 mb-1">I</span>
               <span className="block text-[60px] sm:text-[70px] font-black tracking-[-3px] text-foreground leading-none">NEED</span>
             </div>
+            <p className="text-lg font-semibold text-foreground/70 mb-4">skilled help</p>
 
-            <p className="text-sm text-foreground/50 leading-relaxed mb-6">
+            <p className="text-[15px] text-foreground/60 leading-relaxed mb-6">
               Find trusted, vetted artisans near you — plumbers, cleaners, mechanics and more.
             </p>
 

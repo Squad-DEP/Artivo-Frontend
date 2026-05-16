@@ -213,8 +213,8 @@ export function DashboardShell({ children, noPaddding }: { children: ReactNode, 
               {/* Header row */}
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Save your info so you don&apos;t lose your progress</p>
-                  <p className="text-xs text-foreground/40 mt-0.5">These are your auto-generated login details. Note them down or set permanent ones.</p>
+                  <p className="text-base font-semibold text-foreground">Save your info so you don&apos;t lose your progress</p>
+                  <p className="text-xs text-foreground/60 mt-0.5">These are your auto-generated Guest account login details. Note them down, you can change them later.</p>
                 </div>
                 <Link
                   href="/dashboard/profile"

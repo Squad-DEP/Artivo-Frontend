@@ -3,6 +3,9 @@ export type DocumentType =
   | "certificate"
   | "business_card"
   | "generated_card"
+  | "education"
+  | "certification"
+  | "portfolio"
   | "other";
 
 export type UploadStatus = "pending" | "uploaded" | "failed";

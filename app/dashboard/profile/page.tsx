@@ -25,12 +25,14 @@ import {
   GraduationCap,
   Award,
   Image as ImageIcon,
+  FileText,
   Globe,
   MapPin,
   DollarSign,
   Tag,
   Clock,
   Languages,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { apiService } from "@/api/api-service";
@@ -43,6 +45,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FileUpload } from "@/components/uploads/FileUpload";
+import { useDocumentStore } from "@/store/documentStore";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +64,7 @@ interface EducationItem {
   title: string;
   institution: string;
   year: number | null;
+  file_url?: string | null;
 }
 
 interface CertificationItem {
@@ -67,6 +72,7 @@ interface CertificationItem {
   title: string;
   issuer: string;
   year: number | null;
+  file_url?: string | null;
 }
 
 interface PortfolioItem {
@@ -749,25 +755,81 @@ function ExperienceSection({ items, onRefresh }: { items: ExperienceItem[]; onRe
   );
 }
 
+// ─── File attachment helpers ─────────────────────────────────────────────────
+
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(url);
+}
+
+function FileAttachmentPreview({ url, label = "Attachment" }: { url: string; label?: string }) {
+  if (isImageUrl(url)) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block mt-2 w-fit">
+        <img src={url} alt={label} className="h-14 w-20 rounded-lg object-cover border border-gray-200 hover:opacity-90 transition-opacity" />
+      </a>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-1.5 text-xs font-medium text-[var(--orange)] hover:underline">
+      <FileText className="w-3.5 h-3.5" /> View document
+    </a>
+  );
+}
+
+function FileAttachmentDialogPreview({ url }: { url: string }) {
+  if (isImageUrl(url)) {
+    return (
+      <div className="relative rounded-xl overflow-hidden border border-gray-200">
+        <img src={url} alt="Current attachment" className="w-full h-36 object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
+          <a href={url} target="_blank" rel="noopener noreferrer" download className="flex items-center gap-1.5 text-white text-xs font-semibold">
+            <Download className="w-3.5 h-3.5" /> Download
+          </a>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5">
+      <FileText className="w-6 h-6 text-gray-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-500 truncate">Document attached</p>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[var(--orange)] hover:underline">View / Download</a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Education Section ───────────────────────────────────────────────────────
 
 function EducationSection({ items, onRefresh }: { items: EducationItem[]; onRefresh: () => Promise<void> }) {
+  const { uploadDocument, isUploading } = useDocumentStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EducationItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [institution, setInstitution] = useState("");
   const [year, setYear] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const openAdd = () => { setEditingItem(null); setTitle(""); setInstitution(""); setYear(""); setDialogOpen(true); };
-  const openEdit = (item: EducationItem) => { setEditingItem(item); setTitle(item.title); setInstitution(item.institution); setYear(item.year?.toString() || ""); setDialogOpen(true); };
+  const openAdd = () => { setEditingItem(null); setTitle(""); setInstitution(""); setYear(""); setPendingFile(null); setSaveError(null); setDialogOpen(true); };
+  const openEdit = (item: EducationItem) => { setEditingItem(item); setTitle(item.title); setInstitution(item.institution); setYear(item.year?.toString() || ""); setPendingFile(null); setSaveError(null); setDialogOpen(true); };
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
     try {
-      const body = { title: title.trim(), institution: institution.trim(), year: year ? parseInt(year) : null };
+      let fileUrl: string | null | undefined = editingItem?.file_url;
+      if (pendingFile) {
+        const result = await uploadDocument({ file: pendingFile, documentType: "education", fileName: pendingFile.name });
+        if (result) fileUrl = result.fileUrl;
+        else throw new Error("File upload failed — please try again");
+      }
+      const body: Record<string, unknown> = { title: title.trim(), institution: institution.trim(), year: year ? parseInt(year) : null };
+      if (fileUrl !== undefined) body.file_url = fileUrl;
       if (editingItem) {
         await apiService.put(`/worker/profile/education/${editingItem.id}`, { body });
       } else {
@@ -775,7 +837,9 @@ function EducationSection({ items, onRefresh }: { items: EducationItem[]; onRefr
       }
       await onRefresh();
       setDialogOpen(false);
-    } catch {}
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to save");
+    }
     setIsSaving(false);
   };
 
@@ -811,6 +875,7 @@ function EducationSection({ items, onRefresh }: { items: EducationItem[]; onRefr
                 <p className="font-medium text-gray-900 text-sm">{item.title}</p>
                 <p className="text-xs text-gray-500">{item.institution}</p>
                 {item.year && <p className="text-xs text-gray-400 mt-0.5">{item.year}</p>}
+                {item.file_url && <FileAttachmentPreview url={item.file_url} label={item.title} />}
               </div>
               <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => openEdit(item)} className="p-1.5 rounded-md hover:bg-gray-200 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
@@ -830,10 +895,22 @@ function EducationSection({ items, onRefresh }: { items: EducationItem[]; onRefr
             <div className="space-y-1.5"><Label>Degree / Qualification</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. B.Sc Mechanical Engineering" /></div>
             <div className="space-y-1.5"><Label>Institution</Label><Input value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="e.g. University of Lagos" /></div>
             <div className="space-y-1.5"><Label>Year <span className="text-gray-400 font-normal">(optional)</span></Label><Input type="number" value={year} onChange={(e) => setYear(e.target.value)} placeholder="2020" min="1950" max="2100" /></div>
+            <div className="space-y-1.5">
+              <Label>Document <span className="text-gray-400 font-normal">(optional — certificate, transcript, etc.)</span></Label>
+              {editingItem?.file_url && !pendingFile && <FileAttachmentDialogPreview url={editingItem.file_url} />}
+              <FileUpload
+                accept="image/*,application/pdf"
+                maxSizeMb={10}
+                onFile={(f) => setPendingFile(f)}
+                disabled={isUploading || isSaving}
+                preview
+              />
+            </div>
+            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={isSaving || !title.trim() || !institution.trim()} className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {editingItem ? "Update" : "Add"}
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isUploading || isSaving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={isSaving || isUploading || !title.trim() || !institution.trim()} className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+                {(isSaving || isUploading) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {editingItem ? "Update" : "Add"}
               </Button>
             </div>
           </div>
@@ -846,6 +923,7 @@ function EducationSection({ items, onRefresh }: { items: EducationItem[]; onRefr
 // ─── Certifications Section ──────────────────────────────────────────────────
 
 function CertificationsProfileSection({ items, onRefresh }: { items: CertificationItem[]; onRefresh: () => Promise<void> }) {
+  const { uploadDocument, isUploading } = useDocumentStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CertificationItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -854,14 +932,25 @@ function CertificationsProfileSection({ items, onRefresh }: { items: Certificati
   const [title, setTitle] = useState("");
   const [issuer, setIssuer] = useState("");
   const [year, setYear] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const openAdd = () => { setEditingItem(null); setTitle(""); setIssuer(""); setYear(""); setDialogOpen(true); };
-  const openEdit = (item: CertificationItem) => { setEditingItem(item); setTitle(item.title); setIssuer(item.issuer); setYear(item.year?.toString() || ""); setDialogOpen(true); };
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const openAdd = () => { setEditingItem(null); setTitle(""); setIssuer(""); setYear(""); setPendingFile(null); setSaveError(null); setDialogOpen(true); };
+  const openEdit = (item: CertificationItem) => { setEditingItem(item); setTitle(item.title); setIssuer(item.issuer); setYear(item.year?.toString() || ""); setPendingFile(null); setSaveError(null); setDialogOpen(true); };
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
     try {
-      const body = { title: title.trim(), issuer: issuer.trim(), year: year ? parseInt(year) : null };
+      let fileUrl: string | null | undefined = editingItem?.file_url;
+      if (pendingFile) {
+        const result = await uploadDocument({ file: pendingFile, documentType: "certification", fileName: pendingFile.name });
+        if (result) fileUrl = result.fileUrl;
+        else throw new Error("File upload failed — please try again");
+      }
+      const body: Record<string, unknown> = { title: title.trim(), issuer: issuer.trim(), year: year ? parseInt(year) : null };
+      if (fileUrl !== undefined) body.file_url = fileUrl;
       if (editingItem) {
         await apiService.put(`/worker/profile/certifications/${editingItem.id}`, { body });
       } else {
@@ -869,7 +958,9 @@ function CertificationsProfileSection({ items, onRefresh }: { items: Certificati
       }
       await onRefresh();
       setDialogOpen(false);
-    } catch {}
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to save");
+    }
     setIsSaving(false);
   };
 
@@ -905,6 +996,7 @@ function CertificationsProfileSection({ items, onRefresh }: { items: Certificati
                 <p className="font-medium text-gray-900 text-sm">{item.title}</p>
                 <p className="text-xs text-gray-500">{item.issuer}</p>
                 {item.year && <p className="text-xs text-gray-400 mt-0.5">{item.year}</p>}
+                {item.file_url && <FileAttachmentPreview url={item.file_url} label={item.title} />}
               </div>
               <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => openEdit(item)} className="p-1.5 rounded-md hover:bg-gray-200 text-gray-400 hover:text-gray-700"><Pencil className="w-3.5 h-3.5" /></button>
@@ -924,10 +1016,22 @@ function CertificationsProfileSection({ items, onRefresh }: { items: Certificati
             <div className="space-y-1.5"><Label>Certification Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Certified Electrician Level 3" /></div>
             <div className="space-y-1.5"><Label>Issuing Organization</Label><Input value={issuer} onChange={(e) => setIssuer(e.target.value)} placeholder="e.g. National Board of Technical Education" /></div>
             <div className="space-y-1.5"><Label>Year <span className="text-gray-400 font-normal">(optional)</span></Label><Input type="number" value={year} onChange={(e) => setYear(e.target.value)} placeholder="2022" min="1950" max="2100" /></div>
+            <div className="space-y-1.5">
+              <Label>Certificate File <span className="text-gray-400 font-normal">(optional)</span></Label>
+              {editingItem?.file_url && !pendingFile && <FileAttachmentDialogPreview url={editingItem.file_url} />}
+              <FileUpload
+                accept="image/*,application/pdf"
+                maxSizeMb={10}
+                onFile={(f) => setPendingFile(f)}
+                disabled={isUploading || isSaving}
+                preview
+              />
+            </div>
+            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={isSaving || !title.trim() || !issuer.trim()} className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {editingItem ? "Update" : "Add"}
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isUploading || isSaving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={isSaving || isUploading || !title.trim() || !issuer.trim()} className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+                {(isSaving || isUploading) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {editingItem ? "Update" : "Add"}
               </Button>
             </div>
           </div>
@@ -940,6 +1044,7 @@ function CertificationsProfileSection({ items, onRefresh }: { items: Certificati
 // ─── Portfolio Section ───────────────────────────────────────────────────────
 
 function PortfolioSection({ items, onRefresh }: { items: PortfolioItem[]; onRefresh: () => Promise<void> }) {
+  const { uploadDocument, isUploading } = useDocumentStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -947,16 +1052,25 @@ function PortfolioSection({ items, onRefresh }: { items: PortfolioItem[]; onRefr
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [category, setCategory] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const openAdd = () => { setEditingItem(null); setTitle(""); setDescription(""); setImageUrl(""); setCategory(""); setDialogOpen(true); };
-  const openEdit = (item: PortfolioItem) => { setEditingItem(item); setTitle(item.title); setDescription(item.description || ""); setImageUrl(item.image_url || ""); setCategory(item.category || ""); setDialogOpen(true); };
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const openAdd = () => { setEditingItem(null); setTitle(""); setDescription(""); setCategory(""); setPendingFile(null); setSaveError(null); setDialogOpen(true); };
+  const openEdit = (item: PortfolioItem) => { setEditingItem(item); setTitle(item.title); setDescription(item.description || ""); setCategory(item.category || ""); setPendingFile(null); setSaveError(null); setDialogOpen(true); };
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
     try {
-      const body = { title: title.trim(), description: description.trim() || null, image_url: imageUrl.trim() || null, images: [], category: category.trim() || null };
+      let imageUrl: string | null = editingItem?.image_url ?? null;
+      if (pendingFile) {
+        const result = await uploadDocument({ file: pendingFile, documentType: "portfolio", fileName: pendingFile.name });
+        if (result) imageUrl = result.fileUrl;
+        else throw new Error("File upload failed — please try again");
+      }
+      const body = { title: title.trim(), description: description.trim() || null, image_url: imageUrl, images: [], category: category.trim() || null };
       if (editingItem) {
         await apiService.put(`/worker/profile/portfolio/${editingItem.id}`, { body });
       } else {
@@ -964,7 +1078,9 @@ function PortfolioSection({ items, onRefresh }: { items: PortfolioItem[]; onRefr
       }
       await onRefresh();
       setDialogOpen(false);
-    } catch {}
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to save");
+    }
     setIsSaving(false);
   };
 
@@ -1007,6 +1123,11 @@ function PortfolioSection({ items, onRefresh }: { items: PortfolioItem[]; onRefr
                 {item.category && <p className="text-white/70 text-[10px] mt-0.5">{item.category}</p>}
               </div>
               <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {item.image_url && (
+                  <a href={item.image_url} target="_blank" rel="noopener noreferrer" download className="p-1.5 rounded-md bg-white/90 text-gray-700 hover:bg-white shadow-sm" title="Download">
+                    <Download className="w-3 h-3" />
+                  </a>
+                )}
                 <button onClick={() => openEdit(item)} className="p-1.5 rounded-md bg-white/90 text-gray-700 hover:bg-white shadow-sm"><Pencil className="w-3 h-3" /></button>
                 <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} className="p-1.5 rounded-md bg-white/90 text-red-600 hover:bg-white shadow-sm disabled:opacity-50">
                   {deletingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
@@ -1023,17 +1144,26 @@ function PortfolioSection({ items, onRefresh }: { items: PortfolioItem[]; onRefr
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5"><Label>Project Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Kitchen Renovation – Lekki" /></div>
             <div className="space-y-1.5"><Label>Category <span className="text-gray-400 font-normal">(optional)</span></Label><Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Plumbing, Electrical" /></div>
-            <div className="space-y-1.5"><Label>Image URL <span className="text-gray-400 font-normal">(optional)</span></Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
-              <p className="text-xs text-gray-400">Paste a link to an image of your work</p>
+            <div className="space-y-1.5">
+              <Label>Project Photo <span className="text-gray-400 font-normal">(optional)</span></Label>
+              {editingItem?.image_url && !pendingFile && <FileAttachmentDialogPreview url={editingItem.image_url} />}
+              <FileUpload
+                accept="image/jpeg,image/png,image/webp"
+                maxSizeMb={15}
+                onFile={(f) => setPendingFile(f)}
+                disabled={isUploading || isSaving}
+                preview
+              />
             </div>
             <div className="space-y-1.5"><Label>Description <span className="text-gray-400 font-normal">(optional)</span></Label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the project, what you did, and the outcome..." rows={3}
                 className="w-full resize-none rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-[var(--orange)] focus:ring-2 focus:ring-[var(--orange)]/10 outline-none transition-colors" />
             </div>
+            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={isSaving || !title.trim()} className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {editingItem ? "Update" : "Add"}
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isUploading || isSaving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={isSaving || isUploading || !title.trim()} className="bg-[var(--orange)] hover:bg-[var(--orange)]/90 text-white">
+                {(isSaving || isUploading) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} {editingItem ? "Update" : "Add"}
               </Button>
             </div>
           </div>
