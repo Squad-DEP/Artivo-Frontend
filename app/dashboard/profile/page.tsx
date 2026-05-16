@@ -729,7 +729,7 @@ function ExperienceSection({ items, onRefresh }: { items: ExperienceItem[]; onRe
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[70vw]">
           <DialogHeader><DialogTitle>{editingItem ? "Edit" : "Add"} Experience</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5"><Label>Job Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Senior Plumber" /></div>
@@ -889,7 +889,7 @@ function EducationSection({ items, onRefresh }: { items: EducationItem[]; onRefr
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[70vw]">
           <DialogHeader><DialogTitle>{editingItem ? "Edit" : "Add"} Education</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5"><Label>Degree / Qualification</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. B.Sc Mechanical Engineering" /></div>
@@ -1010,7 +1010,7 @@ function CertificationsProfileSection({ items, onRefresh }: { items: Certificati
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[70vw]">
           <DialogHeader><DialogTitle>{editingItem ? "Edit" : "Add"} Certification</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5"><Label>Certification Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Certified Electrician Level 3" /></div>
@@ -1139,7 +1139,7 @@ function PortfolioSection({ items, onRefresh }: { items: PortfolioItem[]; onRefr
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[70vw]">
           <DialogHeader><DialogTitle>{editingItem ? "Edit" : "Add"} Portfolio Item</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5"><Label>Project Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Kitchen Renovation – Lekki" /></div>

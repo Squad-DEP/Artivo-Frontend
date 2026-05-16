@@ -27,6 +27,8 @@ import {
   ThumbsUp,
   ChevronDown,
   Send,
+  GraduationCap,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND } from "@/lib/constants";
@@ -228,7 +230,10 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
   const verificationConfig = VERIFICATION_STATUS[worker.verification_status];
   const isVerified = worker.verification_status === "verified";
   const memberSince = new Date(worker.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const yearsExperience = worker.skills.length > 0 ? Math.max(...worker.skills.map((s) => s.years_experience ?? 0)) : 0;
+  const currentYear = new Date().getFullYear();
+  const yearsExperience = worker.experience && worker.experience.length > 0
+    ? currentYear - Math.min(...worker.experience.map((e) => e.start_year))
+    : 0;
 
   const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 3);
 
@@ -371,9 +376,9 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
             <div className={activeTab === "about" ? "" : "hidden"}>
               <div className="space-y-6">
                   {/* About */}
-                  <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4">About</h2>
-                    <p className="text-gray-600 leading-relaxed">{worker.bio}</p>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-7">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">About</h2>
+                    <p className="text-gray-600 leading-relaxed text-[15px]">{worker.bio}</p>
 
                     {worker.skills.length > 0 && (
                       <div className="mt-6">
@@ -393,64 +398,95 @@ export function ArtisanProfileContent({ worker, reviews = [] }: ArtisanProfileCo
 
                   {/* Experience */}
                   {worker.experience && worker.experience.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                      <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
-                        <Briefcase className="w-5 h-5 text-[var(--orange)]" /> Experience
+                    <div className="bg-white rounded-2xl border border-gray-100 p-7">
+                      <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                          <Briefcase className="w-4.5 h-4.5 text-purple-600" />
+                        </div>
+                        Experience
                       </h2>
-                      <div className="relative pl-6 space-y-6">
-                        <div className="absolute -left-[2px] top-1.5 h-full w-0.5 bg-gray-100"/>
+                      <div className="relative pl-7 space-y-7">
+                        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gray-100" />
                         {worker.experience.map((exp) => (
                           <div key={exp.id} className="relative">
-                            <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-[var(--orange)] border-2 border-white" />
-                            <div className="flex items-start justify-between gap-4">
+                            <div className="absolute -left-[27px] top-1.5 w-3.5 h-3.5 rounded-full bg-[var(--orange)] border-2 border-white shadow-sm" />
+                            <div className="flex items-start justify-between gap-4 flex-wrap">
                               <div>
-                                <p className="font-semibold text-gray-900 text-sm">{exp.title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{exp.company}</p>
+                                <p className="font-semibold text-gray-900">{exp.title}</p>
+                                <p className="text-sm text-gray-500 mt-0.5">{exp.company}</p>
                               </div>
-                              <span className="text-xs text-gray-400 whitespace-nowrap">{exp.start_year} — {exp.end_year ?? "Present"}</span>
+                              <span className="text-sm text-gray-400 whitespace-nowrap bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                {exp.start_year} — {exp.end_year ?? "Present"}
+                              </span>
                             </div>
-                            {exp.description && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{exp.description}</p>}
+                            {exp.description && <p className="text-sm text-gray-600 mt-2.5 leading-relaxed">{exp.description}</p>}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Education & Certifications */}
-                  {((worker.education && worker.education.length > 0) || (worker.certifications && worker.certifications.length > 0)) && (
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      {worker.education && worker.education.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Award className="w-5 h-5 text-[var(--orange)]" /> Education
-                          </h2>
-                          <div className="space-y-4">
-                            {worker.education.map((edu) => (
-                              <div key={edu.id}>
-                                <p className="font-medium text-gray-900 text-sm">{edu.title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{edu.institution}</p>
-                                <p className="text-xs text-gray-400">{edu.year}</p>
-                              </div>
-                            ))}
-                          </div>
+                  {/* Education */}
+                  {worker.education && worker.education.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-7">
+                      <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4.5 h-4.5 text-green-600" />
                         </div>
-                      )}
-                      {worker.certifications && worker.certifications.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-[var(--orange)]" /> Certifications
-                          </h2>
-                          <div className="space-y-4">
-                            {worker.certifications.map((cert) => (
-                              <div key={cert.id}>
-                                <p className="font-medium text-gray-900 text-sm">{cert.title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{cert.issuer}</p>
-                                <p className="text-xs text-gray-400">{cert.year}</p>
-                              </div>
-                            ))}
+                        Education
+                      </h2>
+                      <div className="space-y-5">
+                        {worker.education.map((edu) => (
+                          <div key={edu.id} className="flex items-start gap-4 rounded-xl bg-gray-50 border border-gray-100 p-4">
+                            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                              <GraduationCap className="w-5 h-5 text-green-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900">{edu.title}</p>
+                              <p className="text-sm text-gray-500 mt-0.5">{edu.institution}</p>
+                              {edu.year ? <p className="text-xs text-gray-400 mt-1">{edu.year}</p> : null}
+                              {edu.file_url && (
+                                <a href={edu.file_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-[var(--orange)] hover:underline">
+                                  <FileText className="w-3.5 h-3.5" /> View certificate
+                                </a>
+                              )}
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Certifications */}
+                  {worker.certifications && worker.certifications.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-7">
+                      <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                          <Award className="w-4.5 h-4.5 text-amber-600" />
                         </div>
-                      )}
+                        Certifications
+                      </h2>
+                      <div className="space-y-5">
+                        {worker.certifications.map((cert) => (
+                          <div key={cert.id} className="flex items-start gap-4 rounded-xl bg-gray-50 border border-gray-100 p-4">
+                            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                              <Award className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900">{cert.title}</p>
+                              <p className="text-sm text-gray-500 mt-0.5">{cert.issuer}</p>
+                              {cert.year ? <p className="text-xs text-gray-400 mt-1">{cert.year}</p> : null}
+                              {cert.file_url && (
+                                <a href={cert.file_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-[var(--orange)] hover:underline">
+                                  <FileText className="w-3.5 h-3.5" /> View certificate
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
               </div>

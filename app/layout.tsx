@@ -26,9 +26,10 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.className} antialiased tracking-tight flex w-full h-full justify-center`}
+        suppressHydrationWarning
       >
         <AuthProvider>
           <main className="flex flex-col h-screen overflow-y-auto w-full max-w-[120rem] mx-auto">

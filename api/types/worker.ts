@@ -54,6 +54,7 @@ export interface EducationItem {
   title: string;
   institution: string;
   year: number;
+  file_url?: string | null;
 }
 
 export interface CertificationItem {
@@ -61,6 +62,7 @@ export interface CertificationItem {
   title: string;
   issuer: string;
   year: number;
+  file_url?: string | null;
 }
 
 export interface WorkerProfile {

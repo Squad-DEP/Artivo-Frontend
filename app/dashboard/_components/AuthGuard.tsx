@@ -103,9 +103,9 @@ const AuthGuardInner = ({ children }: AuthGuardProps) => {
 
   if (!initialized || isChecking) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" suppressHydrationWarning>
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
           <p className="text-sm text-gray-600">Loading...</p>
         </div>
       </div>

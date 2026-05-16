@@ -58,7 +58,7 @@ async function fetchWorkerByUsername(
         id: `skill-${idx}`,
         name: skillName,
       })),
-      categories: [],
+      categories: (p.categories ?? []).map((name) => ({ id: name, name, slug: name.toLowerCase().replace(/\s+/g, "-") })) as any,
       location: {
         city: p.location ?? "",
         state: "",
@@ -86,22 +86,24 @@ async function fetchWorkerByUsername(
         title: e.title,
         institution: e.institution,
         year: e.year ?? 0,
+        file_url: e.file_url ?? null,
       })),
       certifications: (p.certifications ?? []).map((c) => ({
         id: c.id,
         title: c.title,
         issuer: c.issuer,
         year: c.year ?? 0,
+        file_url: c.file_url ?? null,
       })),
       languages: p.languages ?? [],
       hourly_rate: p.hourly_rate ?? undefined,
       minimum_budget: p.minimum_budget ?? undefined,
       trust_score: Math.round((p.average_rating / 5) * 100),
-      completed_jobs: 0,
-      completion_rate: undefined,
+      completed_jobs: 0,      // TODO: fetch from /jobs/stats/worker or a public stats endpoint
+      completion_rate: undefined, // TODO: same stats endpoint
       rating: p.average_rating,
-      reviews_count: 0,
-      verification_status: "verified",
+      reviews_count: 0,       // populated below from fetched reviews
+      verification_status: "verified", // TODO: add to profile API response
       availability: (p.availability === "unavailable" ? "offline" : (p.availability as "available" | "busy" | "offline")) ?? "available",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -193,6 +195,9 @@ export default async function ArtisanProfilePage({ params }: PageProps) {
   }
 
   const reviews = await fetchWorkerReviews(worker.id);
+
+  // Patch in the real reviews count now that we have the reviews list
+  worker.reviews_count = reviews.length;
 
   return <ArtisanProfileContent worker={worker} reviews={reviews} />;
 }
