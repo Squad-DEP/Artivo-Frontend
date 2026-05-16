@@ -38,7 +38,7 @@ const FIELDS: FieldConfig[] = [
 
 export default function CustomerOnboardingPage() {
   const router = useRouter();
-  const { isOnboardingComplete } = useAuthStore();
+  const { user, initialized, isOnboardingComplete, guestSignup } = useAuthStore();
   const {
     confirmationFields,
     isProcessing,
@@ -60,6 +60,7 @@ export default function CustomerOnboardingPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [useTextInput, setUseTextInput] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [isCreatingGuest, setIsCreatingGuest] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -73,6 +74,15 @@ export default function CustomerOnboardingPage() {
       router.replace("/dashboard");
     }
   }, [isOnboardingComplete, router]);
+
+  // Auto-create a guest account so AI endpoints have a valid JWT
+  useEffect(() => {
+    if (!initialized) return;
+    if (!user) {
+      setIsCreatingGuest(true);
+      guestSignup("customer").finally(() => setIsCreatingGuest(false));
+    }
+  }, [initialized]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Focus the edit input when a field is selected for editing
   useEffect(() => {
@@ -193,40 +203,60 @@ export default function CustomerOnboardingPage() {
   // --- INTRO PHASE ---
   if (phase === "intro") {
     return (
-      <main className="flex flex-col items-center justify-center min-h-screen w-full px-4 py-12">
-        <div className="w-full max-w-[600px] flex flex-col items-center text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--orange)]/20 bg-[var(--orange)]/5 mb-6">
-            <Sparkles className="w-4 h-4 text-[var(--orange)]" />
-            <span className="text-sm font-medium text-[var(--orange)]">AI-Powered Onboarding</span>
+      <main className="flex flex-col items-center justify-center min-h-screen w-full px-5 py-14">
+        {isCreatingGuest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--orange)]" />
+              <p className="text-sm text-foreground/60">Getting things ready…</p>
+            </div>
+          </div>
+        )}
+
+        <div className="w-full max-w-[580px] flex flex-col items-center text-center">
+          {/* Step badge */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[var(--orange)]/20 bg-[var(--orange)]/5 mb-8">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--orange)]" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-[var(--orange)]">AI-Powered Onboarding</span>
           </div>
 
-          {/* Heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4">
+          {/* Primary heading */}
+          <h1 className="text-[40px] sm:text-[52px] lg:text-[62px] font-bold leading-[1.05] tracking-[-2px] sm:tracking-[-3px] text-foreground mb-4">
             What do you need help with?
           </h1>
 
-          {/* Subtitle */}
-          <p className="text-base sm:text-lg text-foreground/60 max-w-lg mb-10">
-            Just tell us who you are and what services you need. Our AI will organize everything — you&apos;ll review and edit before saving.
+          {/* Sub-heading */}
+          <p className="text-base sm:text-[17px] text-foreground/50 max-w-[420px] leading-relaxed mb-10">
+            Just say your name, location, and the services you&apos;re looking for. Our AI will organise everything — then you review before saving.
           </p>
 
-          {/* Example quote */}
-          <div className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-6 mb-8">
-            <p className="text-sm text-foreground/50 mb-2">Try saying something like:</p>
-            <p className="text-base italic text-foreground/70 leading-relaxed">
-              &quot;I&apos;m Sarah Williams based in Abuja. I&apos;m looking for a reliable plumber and an electrician for some home repairs.&quot;
+          {/* Example card */}
+          <div className="w-full rounded-2xl border border-gray-100 bg-gray-50/80 px-6 py-5 mb-10 text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground/30 mb-2">Example</p>
+            <p className="text-[15px] italic text-foreground/60 leading-relaxed">
+              &quot;I&apos;m Sarah Williams based in Abuja. I need a reliable plumber and an electrician for some home repairs.&quot;
             </p>
           </div>
 
-          {/* Get Started button */}
+          {/* What we capture */}
+          <div className="flex flex-wrap justify-center gap-2 mb-10">
+            {["Name", "Location", "Services needed"].map((label) => (
+              <span key={label} className="text-xs font-medium px-3 py-1.5 rounded-full bg-white border border-gray-200 text-foreground/50">
+                {label}
+              </span>
+            ))}
+          </div>
+
+          {/* CTA */}
           <button
             onClick={() => setPhase("recording")}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--orange)] text-white font-medium text-base hover:bg-[var(--orange-hover)] transition-all"
+            className="inline-flex items-center gap-2.5 px-8 py-4 rounded-xl bg-[var(--orange)] text-white font-bold text-base sm:text-lg hover:bg-[var(--orange-hover)] shadow-lg shadow-[var(--orange)]/25 hover:shadow-xl hover:shadow-[var(--orange)]/30 transition-all"
           >
-            Get Started
-            <ArrowRight className="w-4 h-4" />
+            Start speaking
+            <ArrowRight className="w-5 h-5" />
           </button>
+
+          <p className="mt-4 text-xs text-foreground/30">Takes about 30 seconds · you can edit everything after</p>
         </div>
       </main>
     );

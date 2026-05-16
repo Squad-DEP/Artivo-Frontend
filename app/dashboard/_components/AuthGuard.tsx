@@ -20,7 +20,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
 const AuthGuardInner = ({ children }: AuthGuardProps) => {
   const router = useRouter();
-  const { user, refreshToken, initialized } = useAuthStore();
+  const { user, refreshToken, initialized, isGuest } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
   const hasCheckedRef = useRef(false);
 
@@ -52,7 +52,8 @@ const AuthGuardInner = ({ children }: AuthGuardProps) => {
             const timeUntilExpiry = payload.exp - currentTime;
 
             // Only refresh if token expires in less than 5 minutes (300 seconds)
-            if (timeUntilExpiry < 300) {
+            // Guest accounts use backend JWT — skip Supabase refresh for them
+            if (timeUntilExpiry < 300 && !isGuest) {
               const refreshSuccess = await refreshToken();
               if (!refreshSuccess) {
                 router.push("/login?error=session_expired");

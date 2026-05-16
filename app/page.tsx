@@ -101,20 +101,22 @@ export default function Home() {
             <p className="max-w-[400px] md:max-w-[470px] lg:max-w-[541px] mt-12 xl:mt-7 text-base sm:text-xl leading-[149%] tracking-[0px]">
               {BRAND.fullDescription}
             </p>
-            <div className="mt-7 max-sm:grid max-sm:grid-cols-2 flex items-center gap-2.5">
+            <div className="mt-8 flex items-center gap-4">
               <Button
-                onClick={() => router.push("/register?type=worker")}
-                className="h-[52px] px-[30px] text-base sm:text-lg text-white leading-[22px] rounded-[13px] bg-[var(--orange)] hover:bg-[var(--orange)]/90 hover:text-white/90"
+                onClick={() => router.push("/onboarding/select-type")}
+                className="h-[56px] sm:h-[64px] px-8 sm:px-10 text-lg sm:text-xl font-bold text-white leading-[22px] rounded-[13px] bg-[var(--orange)] hover:bg-[var(--orange)]/90 shadow-lg shadow-[var(--orange)]/25 hover:shadow-xl hover:shadow-[var(--orange)]/30 transition-all"
               >
-                I&apos;m an artisan
+                Get started here!
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => router.push("/register?type=customer")}
-                className="h-[52px] px-[30px] text-base sm:text-lg text-[var(--orange)] leading-[22px] rounded-[13px] border border-[var(--orange)]"
-              >
-                I need services
-              </Button>
+              {user && (
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/dashboard")}
+                  className="h-[56px] sm:h-[64px] px-6 sm:px-8 text-base sm:text-lg text-[var(--orange)] leading-[22px] rounded-[13px] border border-[var(--orange)]"
+                >
+                  Dashboard
+                </Button>
+              )}
             </div>
             {/* Floating Element */}
             <motion.div
@@ -419,16 +421,10 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <Button
-              onClick={() => router.push("/register?type=worker")}
-              className="w-[200px] h-12 sm:h-[56px] text-base sm:text-lg text-white hover:bg-[var(--orange)]/90 leading-[22px] rounded-[13px] bg-[var(--orange)]"
+              onClick={() => router.push("/onboarding/select-type")}
+              className="h-[56px] sm:h-[64px] px-10 sm:px-14 text-lg sm:text-xl font-bold text-white hover:bg-[var(--orange)]/90 leading-[22px] rounded-[13px] bg-[var(--orange)] shadow-xl shadow-black/20"
             >
-              Start earning
-            </Button>
-            <Button
-              onClick={() => router.push("/register?type=customer")}
-              className="w-[200px] h-12 sm:h-[56px] text-base sm:text-lg text-white hover:bg-white/10 leading-[22px] border border-white bg-transparent rounded-[13px]"
-            >
-              Find artisans
+              Get started here!
             </Button>
           </div>
         </div>
@@ -611,19 +607,28 @@ const Header = () => {
       </nav>
 
       <div className="flex items-center gap-2.5">
-        <Button
-          onClick={() => router.push(user ? "/dashboard" : "/login")}
-          className={`h-10 sm:h-[52px] text-sm sm:text-lg text-[var(--orange)] leading-[22px] border border-[var(--orange)] bg-transparent rounded-lg sm:rounded-[13px] hover:bg-[var(--orange)]/5`}
-        >
-          {user ? "Dashboard" : "Login"}
-        </Button>
-        {!user && (
+        {user ? (
           <Button
-            onClick={() => router.push("/register")}
-            className="w-28 sm:w-[160px] h-10 sm:h-[52px] text-sm sm:text-lg text-white leading-[22px] rounded-lg sm:rounded-[13px] bg-[var(--orange)] hover:bg-[var(--orange)]/90"
+            onClick={() => router.push("/dashboard")}
+            className="h-10 sm:h-[52px] px-5 sm:px-7 text-sm sm:text-base font-semibold text-white leading-[22px] rounded-lg sm:rounded-[13px] bg-[var(--orange)] hover:bg-[var(--orange)]/90"
           >
-            Get Started
+            Dashboard
           </Button>
+        ) : (
+          <>
+            <Button
+              onClick={() => router.push("/login")}
+              className="h-10 sm:h-[52px] px-4 sm:px-6 text-sm sm:text-base text-[var(--orange)] leading-[22px] border border-[var(--orange)] bg-transparent rounded-lg sm:rounded-[13px] hover:bg-[var(--orange)]/5"
+            >
+              Login
+            </Button>
+            <Button
+              onClick={() => router.push("/onboarding/select-type")}
+              className="h-10 sm:h-[52px] px-5 sm:px-7 text-sm sm:text-base font-bold text-white leading-[22px] rounded-lg sm:rounded-[13px] bg-[var(--orange)] hover:bg-[var(--orange)]/90 shadow-md shadow-[var(--orange)]/20"
+            >
+              Get started here!
+            </Button>
+          </>
         )}
       </div>
     </header>

@@ -146,12 +146,18 @@ interface AuthState {
   completeOnboarding: () => Promise<boolean>;
   getUserType: () => UserType | undefined;
   isOnboardingComplete: () => boolean;
+  // Guest mode
+  isGuest: boolean;
+  guestCredentials: { email: string; password: string } | null;
+  guestSignup: (role: "worker" | "customer") => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
+      isGuest: false,
+      guestCredentials: null,
       loading: {
         signIn: false,
         signUp: false,
@@ -340,6 +346,8 @@ export const useAuthStore = create<AuthState>()(
           } else {
             set((state) => ({
               user: null,
+              isGuest: false,
+              guestCredentials: null,
               loading: { ...state.loading, signOut: false },
               error: null,
             }));
@@ -1013,14 +1021,17 @@ export const useAuthStore = create<AuthState>()(
                 },
               }));
             } else if (event === "SIGNED_OUT") {
-              set((state) => ({
-                user: null,
-                loading: {
-                  ...state.loading,
-                  googleOAuth: false,
-                  appleOAuth: false,
-                },
-              }));
+              // Don't clear guest accounts — they use backend JWT, not Supabase sessions
+              if (!get().isGuest) {
+                set((state) => ({
+                  user: null,
+                  loading: {
+                    ...state.loading,
+                    googleOAuth: false,
+                    appleOAuth: false,
+                  },
+                }));
+              }
             }
           }
         );
@@ -1121,6 +1132,46 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      guestSignup: async (role: "worker" | "customer"): Promise<boolean> => {
+        try {
+          const baseUrl = getApiBaseUrl();
+          const response = await fetch(`${baseUrl}/v1/auth/guest-signup`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role }),
+          });
+
+          const data = await response.json();
+          if (!response.ok || !data.accessToken) return false;
+
+          const payload = JSON.parse(atob(data.accessToken.split(".")[1]));
+          const user: User = {
+            id: payload.id || payload.sub,
+            email: data.guest_email,
+            access_token: data.accessToken,
+            user_metadata: {
+              full_name: "Guest",
+              user_type: role as UserType,
+              onboarding_completed: false,
+            },
+            user_type: role as UserType,
+            onboarded: false,
+            onboarding_completed: false,
+          };
+
+          set({
+            user,
+            isGuest: true,
+            guestCredentials: { email: data.guest_email, password: data.guest_password },
+            error: null,
+          });
+
+          return true;
+        } catch {
+          return false;
+        }
+      },
+
       getUserType: (): UserType | undefined => {
         const { user } = get();
         return user?.user_type || user?.user_metadata?.user_type;
@@ -1138,7 +1189,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-store",
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({ user: state.user, isGuest: state.isGuest, guestCredentials: state.guestCredentials }),
     }
   )
 );

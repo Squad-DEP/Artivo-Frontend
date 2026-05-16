@@ -10,6 +10,10 @@ import {
   Search,
   User,
   Wallet,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useState, useRef, useEffect, ReactElement } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,8 +40,17 @@ export function DashboardShell({ children, noPaddding }: { children: ReactNode, 
   const pathname = usePathname();
   const router = useRouter();
 
-  const { signOut, getUserType } = useAuthStore();
+  const { signOut, getUserType, isGuest, guestCredentials } = useAuthStore();
+  const [showGuestPassword, setShowGuestPassword] = useState(false);
+  const [copiedField, setCopiedField] = useState<"email" | "password" | null>(null);
   const userType = getUserType();
+
+  const copyToClipboard = (text: string, field: "email" | "password") => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -195,6 +208,61 @@ export function DashboardShell({ children, noPaddding }: { children: ReactNode, 
           )}
         >
           <Breadcrumbs />
+          {isGuest && guestCredentials && (
+            <div className="mb-5 rounded-2xl border border-gray-100 bg-white shadow-sm px-5 py-4">
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Save your info so you don&apos;t lose your progress</p>
+                  <p className="text-xs text-foreground/40 mt-0.5">These are your auto-generated login details. Note them down or set permanent ones.</p>
+                </div>
+                <Link
+                  href="/dashboard/profile"
+                  className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-lg bg-[var(--orange)] text-white hover:bg-[var(--orange-hover)] transition-colors whitespace-nowrap"
+                >
+                  Set permanent
+                </Link>
+              </div>
+
+              {/* Credential pills */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                {/* Email */}
+                <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/30 shrink-0">Email</span>
+                  <span className="flex-1 text-xs font-mono text-foreground/70 truncate">{guestCredentials.email}</span>
+                  <button
+                    onClick={() => copyToClipboard(guestCredentials.email, "email")}
+                    className="shrink-0 text-foreground/30 hover:text-[var(--orange)] transition-colors"
+                    aria-label="Copy email"
+                  >
+                    {copiedField === "email" ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                {/* Password */}
+                <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/30 shrink-0">Pass</span>
+                  <span className="flex-1 text-xs font-mono text-foreground/70 truncate">
+                    {showGuestPassword ? guestCredentials.password : "••••••••••"}
+                  </span>
+                  <button
+                    onClick={() => setShowGuestPassword((v) => !v)}
+                    className="shrink-0 text-foreground/30 hover:text-foreground/60 transition-colors"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showGuestPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => copyToClipboard(guestCredentials.password, "password")}
+                    className="shrink-0 text-foreground/30 hover:text-[var(--orange)] transition-colors"
+                    aria-label="Copy password"
+                  >
+                    {copiedField === "password" ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {children}
         </main>
       </div>
