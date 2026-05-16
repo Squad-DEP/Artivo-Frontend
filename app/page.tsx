@@ -53,13 +53,13 @@ export default function Home() {
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
-        className="w-full min-h-[800px] pt-16 sm:pt-[100px] px-6 sm:px-8 md:px-14 xl:px-20 bg-white relative"
+        className="w-full min-h-[600px] sm:min-h-[800px] pt-12 sm:pt-[100px] px-5 sm:px-8 md:px-14 xl:px-20 bg-white relative"
       >
         <div className="absolute z-0 top-0 left-0 w-full h-full bg-white/50" />
         <div className="absolute z-0 top-0 left-0 w-full h-full bg-[radial-gradient(circle,rgba(255,255,255,0)_0%,rgba(255,255,255,0.43)_32%,rgba(255,255,255,1)_100%)]" />
         <div className="relative z-10 w-full h-full">
-          <div className="relative max-md:mb-10 group cursor-default uppercase">
-            <p className="text-[80px] sm:text-[110px] lg:text-[135.83px] tracking-[-6.69px] sm:tracking-[-9.69] leading-[86.5%] font-medium text-left group-hover:text-[var(--orange)] group-hover:has-[:hover]:text-black transition-colors duration-300">
+          <div className="relative max-md:mb-6 group cursor-default uppercase">
+            <p className="text-[48px] sm:text-[72px] md:text-[88px] lg:text-[110px] xl:text-[135.83px] tracking-[-3px] sm:tracking-[-5px] md:tracking-[-6px] lg:tracking-[-8px] xl:tracking-[-9.69px] leading-[88%] font-medium text-left group-hover:text-[var(--orange)] group-hover:has-[:hover]:text-black transition-colors duration-300">
               Your skills{" "}
               <span className="text-black/70 hover:text-[var(--orange)] transition-colors duration-300">
                 deserve
@@ -67,31 +67,29 @@ export default function Home() {
               <br className="max-sm:hidden" />
               recognition
             </p>
-            <div className="relative w-max h-14 sm:h-14 ml-8 lg:ml-10 px-2.5 flex items-center justify-center text-black/20">
-              <ChevronLeft className="absolute top-0 left-0 w-6 h-6 rotate-45" />
-              <ChevronLeft className="absolute top-0 right-0 w-6 h-6 rotate-135" />
-              <ChevronLeft className="absolute bottom-0 left-0 w-6 h-6 rotate-315" />
-              <ChevronLeft className="absolute bottom-0 right-0 w-6 h-6 rotate-225" />
-
-              <span className="py-2.5 px-2.5 block w-max text-base md:text-lg lg:text-[22.3px] font-light text-black tracking-[3px] leading-[86.5%]">
+            <div className="relative w-max h-10 sm:h-14 ml-4 sm:ml-8 lg:ml-10 px-2.5 flex items-center justify-center text-black/20">
+              <ChevronLeft className="absolute top-0 left-0 w-4 sm:w-6 h-4 sm:h-6 rotate-45" />
+              <ChevronLeft className="absolute top-0 right-0 w-4 sm:w-6 h-4 sm:h-6 rotate-135" />
+              <ChevronLeft className="absolute bottom-0 left-0 w-4 sm:w-6 h-4 sm:h-6 rotate-315" />
+              <ChevronLeft className="absolute bottom-0 right-0 w-4 sm:w-6 h-4 sm:h-6 rotate-225" />
+              <span className="py-2 px-2.5 block w-max text-xs sm:text-base md:text-lg lg:text-[22.3px] font-light text-black tracking-[3px] leading-[86.5%]">
                 ARTISANS
               </span>
             </div>
           </div>
 
           <div className="relative flex flex-col items-end group cursor-default uppercase">
-            <div className="relative w-max h-12 sm:h-14 px-2.5 flex items-center justify-center text-black/20">
-              <ChevronLeft className="absolute top-0 left-0 w-6 h-6 rotate-45" />
-              <ChevronLeft className="absolute top-0 right-0 w-6 h-6 rotate-135" />
-              <ChevronLeft className="absolute bottom-0 left-0 w-6 h-6 rotate-315" />
-              <ChevronLeft className="absolute bottom-0 right-0 w-6 h-6 rotate-225" />
-
-              <span className="py-2.5 px-2.5 block w-max text-base md:text-lg lg:text-[22.3px] font-light text-black tracking-[3px] leading-[86.5%]">
+            <div className="relative w-max h-10 sm:h-14 px-2.5 flex items-center justify-center text-black/20">
+              <ChevronLeft className="absolute top-0 left-0 w-4 sm:w-6 h-4 sm:h-6 rotate-45" />
+              <ChevronLeft className="absolute top-0 right-0 w-4 sm:w-6 h-4 sm:h-6 rotate-135" />
+              <ChevronLeft className="absolute bottom-0 left-0 w-4 sm:w-6 h-4 sm:h-6 rotate-315" />
+              <ChevronLeft className="absolute bottom-0 right-0 w-4 sm:w-6 h-4 sm:h-6 rotate-225" />
+              <span className="py-2 px-2.5 block w-max text-xs sm:text-base md:text-lg lg:text-[22.3px] font-light text-black tracking-[3px] leading-[86.5%]">
                 CUSTOMERS
               </span>
             </div>
-            <p className="text-[80px] sm:text-[110px] lg:text-[135.83px] tracking-[-6.69px] sm:tracking-[-9.69] leading-[86.5%] font-medium text-right group-hover:text-[var(--orange)] group-hover:has-[:hover]:text-black transition-colors duration-300">
-              Build trust <br />
+            <p className="text-[48px] sm:text-[72px] md:text-[88px] lg:text-[110px] xl:text-[135.83px] tracking-[-3px] sm:tracking-[-5px] md:tracking-[-6px] lg:tracking-[-8px] xl:tracking-[-9.69px] leading-[88%] font-medium text-right group-hover:text-[var(--orange)] group-hover:has-[:hover]:text-black transition-colors duration-300">
+              Build trust <br className="max-sm:hidden" />
               access{" "}
               <span className="text-black/70 hover:text-[var(--orange)] transition-colors duration-300">
                 opportunity
@@ -100,10 +98,10 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <p className="max-w-[400px] md:max-w-[470px] lg:max-w-[541px] mt-12 xl:mt-7 text-base sm:text-xl leading-[149%] tracking-[0px]">
+            <p className="max-w-[340px] sm:max-w-[400px] md:max-w-[470px] lg:max-w-[541px] mt-8 xl:mt-7 text-sm sm:text-base md:text-xl leading-[149%] tracking-[0px]">
               {BRAND.fullDescription}
             </p>
-            <div className="mt-8 flex items-center gap-4">
+            <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 onClick={() => router.push("/onboarding/select-type")}
                 className="h-[56px] sm:h-[64px] px-8 sm:px-10 text-lg sm:text-xl font-bold text-white leading-[22px] rounded-[13px] bg-[var(--orange)] hover:bg-[var(--orange)]/90 shadow-lg shadow-[var(--orange)]/25 hover:shadow-xl hover:shadow-[var(--orange)]/30 transition-all"
