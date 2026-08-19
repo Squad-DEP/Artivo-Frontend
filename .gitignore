@@ -44,3 +44,8 @@ next-env.d.ts
 # yarn (using npm)
 yarn.lock
 /squad-test/
+
+# env files (restored by security fix)
+.env
+.env.*
+!.env.example
